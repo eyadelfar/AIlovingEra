@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     gemini_model: str = "gemini-2.0-flash"          # Stage 1: script generation
 
     # ── Gemini Art Model (Stage 2 — image generation) ──────────────────────
-    gemini_art_model: str = "gemini-2.5-flash-preview-05-20"  # Stage 2: photo→comic art
+    gemini_art_model: str = "gemini-2.5-flash-image"          # Stage 2: photo→comic art
 
     # ── AI provider selector ───────────────────────────────────────────────
     ai_provider: str = "gemini"

@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from PIL import Image, ImageDraw, ImageFont
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
+from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas as rl_canvas
 
 from app.models.schemas import ComicBook, ComicPage, ComicPanel
@@ -115,9 +116,9 @@ def generate_pdf(comic: ComicBook) -> bytes:
         page_img.save(img_buf, format="PNG")
         img_buf.seek(0)
 
-        # Draw on PDF page
+        # Draw on PDF page — ReportLab requires ImageReader for BytesIO input
         c.drawImage(
-            img_buf, 0, 0,
+            ImageReader(img_buf), 0, 0,
             width=PAGE_W, height=PAGE_H,
             preserveAspectRatio=False,
         )

@@ -33,6 +33,7 @@ class ComicOrchestrator:
         panels_per_page: int,
         image_bytes: list[bytes],
         mime_types: list[str],
+        art_style: str = "superhero",
     ) -> ComicBook:
         num_images = len(image_bytes)
 
@@ -40,6 +41,10 @@ class ComicOrchestrator:
         prompt = self._builder.build(user_text, num_images, panels_per_page)
         result = await self._ai.generate_content(prompt, image_bytes, mime_types)
         comic = self._parser.parse(result.text, num_images)
+
+        # User-chosen art style overrides whatever Stage 1 decided
+        if art_style:
+            comic.art_style = art_style
 
         # ── Stage 2: transform each panel's photo into comic art ───────────
         sem = asyncio.Semaphore(self._ART_CONCURRENCY)

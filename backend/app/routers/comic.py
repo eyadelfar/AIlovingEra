@@ -20,6 +20,7 @@ async def health() -> dict:
 async def generate_comic(
     text: str = Form(""),
     panels_per_page: int = Form(4, ge=2, le=6),
+    art_style: str = Form("superhero"),
     images: list[UploadFile] = [],
     orchestrator: ComicOrchestrator = Depends(get_orchestrator),
 ) -> ComicBook:
@@ -33,6 +34,7 @@ async def generate_comic(
     return await orchestrator.generate(
         user_text=text,
         panels_per_page=panels_per_page,
+        art_style=art_style,
         image_bytes=image_bytes,
         mime_types=mime_types,
     )

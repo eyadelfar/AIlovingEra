@@ -48,7 +48,7 @@ class GeminiArtGenerator(AbstractArtGenerator):
             model=self._model_name,
             contents=parts,
             config=types.GenerateContentConfig(
-                response_modalities=["IMAGE"],
+                response_modalities=["TEXT", "IMAGE"],
             ),
         )
 
