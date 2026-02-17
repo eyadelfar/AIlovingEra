@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+venv/
+.venv/
+# Whisper model files — downloaded at runtime into the whisper_cache Docker volume
+models/

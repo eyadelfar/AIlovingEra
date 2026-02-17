@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:pypi.org)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:ai.google.dev)",
+      "WebFetch(domain:googleapis.github.io)",
+      "WebFetch(domain:developers.googleblog.com)",
+      "Bash(git mv:*)",
+      "Bash(git rm:*)",
+      "Bash(git add:*)",
+      "WebFetch(domain:deepwiki.com)",
+      "WebFetch(domain:developer-service.blog)",
+      "WebFetch(domain:trinesis.com)",
+      "WebFetch(domain:community.openai.com)",
+      "Bash(\"F:/Vibe-Coding-Self-Projects/AIlovingEra/AIlovingEra/backend/app/models/schemas.py\":*)",
+      "Bash(\"F:/Vibe-Coding-Self-Projects/AIlovingEra/AIlovingEra/backend/app/services/comic_orchestrator.py\":*)",
+      "Bash(\"F:/Vibe-Coding-Self-Projects/AIlovingEra/AIlovingEra/backend/app/services/comic_pdf_generator.py\":*)",
+      "Bash(\"F:/Vibe-Coding-Self-Projects/AIlovingEra/AIlovingEra/backend/app/config.py\":*)",
+      "Bash(\"F:/Vibe-Coding-Self-Projects/AIlovingEra/AIlovingEra/backend/requirements.txt\":*)",
+      "Bash(\"F:/Vibe-Coding-Self-Projects/AIlovingEra/AIlovingEra/backend/.env\":*)",
+      "Bash(\"F:/Vibe-Coding-Self-Projects/AIlovingEra/AIlovingEra/backend/.env.example\":*)",
+      "Bash(python3:*)",
+      "Bash(python:*)"
+    ]
+  }
+}

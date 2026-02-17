@@ -1,4 +1,9 @@
 ```
+# ML model weights — never commit large binary model files
+backend/models/
+*.bin
+*.ot
+
 # Dependencies
 node_modules/
 
