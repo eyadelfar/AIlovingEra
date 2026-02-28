@@ -1,0 +1,50 @@
+{
+  "slug": "romantic",
+  "name": "Romantic",
+  "description": "Warm, heartfelt design with soft colors and elegant typography",
+  "preview_emoji": "heart",
+  "ai_tone": "warm-romantic",
+  "ai_style_prompt": "Enhance with warm, soft lighting, gentle bokeh, and rich romantic colors. Add a subtle warm glow.",
+  "color_palette": {
+    "primary": "#8B2252",
+    "secondary": "#D4A574",
+    "accent": "#F5E6D3",
+    "background": "#FFF8F0",
+    "text_primary": "#2D1B2E",
+    "text_caption": "#8B7355"
+  },
+  "font_config": {
+    "heading": "Playfair Display",
+    "body": "Lora",
+    "caption": "Dancing Script",
+    "quote": "Cormorant Garamond"
+  },
+  "layout_presets": {
+    "cover": {
+      "photo_position": "full-bleed",
+      "title_position": "center-bottom"
+    },
+    "single-photo": {
+      "photo_height_pct": 60,
+      "text_position": "below"
+    },
+    "two-photo": {
+      "layout": "side-by-side",
+      "gap_pct": 2
+    },
+    "text-only": {
+      "text_alignment": "center",
+      "decorative_border": true
+    }
+  },
+  "quote_pool": [
+    "In all the world, there is no heart for me like yours.",
+    "Every love story is beautiful, but ours is my favorite.",
+    "I have found the one whom my soul loves.",
+    "You are my today and all of my tomorrows.",
+    "The best thing to hold onto in life is each other.",
+    "Love is not about how many days, months, or years you've been together. It's about how much you love each other every single day.",
+    "Whatever our souls are made of, yours and mine are the same.",
+    "I loved you yesterday, I love you still. I always have, I always will."
+  ]
+}

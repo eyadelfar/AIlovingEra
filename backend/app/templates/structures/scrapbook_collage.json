@@ -1,0 +1,11 @@
+{
+  "slug": "scrapbook_collage",
+  "name": "Scrapbook Collage",
+  "description": "A freeform scrapbook bursting with personality and organized chaos",
+  "preview_emoji": "\u2702\ufe0f",
+  "chapter_strategy": "freeform",
+  "typical_chapters": ["The Messy Beautiful Beginning", "Random Tuesdays", "Our People", "Tiny Moments, Big Feelings", "More of This, Please"],
+  "best_with_vibes": ["playful_meme", "comic_illustrated", "romantic_warm"],
+  "min_photos": 10,
+  "pacing_hint": "Dense, collage-heavy layouts. Stickers/doodles encouraged. Organized chaos"
+}

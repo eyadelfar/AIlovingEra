@@ -1,0 +1,50 @@
+{
+  "slug": "vintage",
+  "name": "Vintage",
+  "description": "Nostalgic, retro design with sepia tones and classic typography",
+  "preview_emoji": "camera",
+  "ai_tone": "nostalgic-vintage",
+  "ai_style_prompt": "Enhance with warm sepia tones, gentle film grain, slightly faded colors, and vintage photography feel.",
+  "color_palette": {
+    "primary": "#8B4513",
+    "secondary": "#D2B48C",
+    "accent": "#F5DEB3",
+    "background": "#FDF5E6",
+    "text_primary": "#3E2723",
+    "text_caption": "#795548"
+  },
+  "font_config": {
+    "heading": "Abril Fatface",
+    "body": "Old Standard TT",
+    "caption": "Special Elite",
+    "quote": "Crimson Text"
+  },
+  "layout_presets": {
+    "cover": {
+      "photo_position": "center-framed",
+      "title_position": "center-bottom"
+    },
+    "single-photo": {
+      "photo_height_pct": 55,
+      "text_position": "below"
+    },
+    "two-photo": {
+      "layout": "overlapped",
+      "gap_pct": 0
+    },
+    "text-only": {
+      "text_alignment": "center",
+      "decorative_border": true
+    }
+  },
+  "quote_pool": [
+    "Some old-fashioned things like fresh air and sunshine are hard to beat.",
+    "The best things in life are the people you love and the memories you make.",
+    "Time flies, but memories last forever.",
+    "In the end, it's not the years in your life that count. It's the life in your years.",
+    "Love is the whole thing. We are only pieces.",
+    "Remember tonight... for it is the beginning of always.",
+    "We didn't realize we were making memories, we just knew we were having fun.",
+    "The most beautiful things are not associated with money; they are memories and moments."
+  ]
+}

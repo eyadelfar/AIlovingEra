@@ -1,0 +1,50 @@
+{
+  "slug": "meme_funny",
+  "name": "Funny / Meme",
+  "description": "Playful, humorous design with bold colors and fun typography",
+  "preview_emoji": "laughing",
+  "ai_tone": "humorous-playful",
+  "ai_style_prompt": "Enhance with vibrant, saturated colors and playful energy. Keep it bright and fun.",
+  "color_palette": {
+    "primary": "#FF6B35",
+    "secondary": "#FFD166",
+    "accent": "#06D6A0",
+    "background": "#FFFBE6",
+    "text_primary": "#1A1A2E",
+    "text_caption": "#555555"
+  },
+  "font_config": {
+    "heading": "Bangers",
+    "body": "Comic Neue",
+    "caption": "Permanent Marker",
+    "quote": "Patrick Hand"
+  },
+  "layout_presets": {
+    "cover": {
+      "photo_position": "center-crop",
+      "title_position": "top-center"
+    },
+    "single-photo": {
+      "photo_height_pct": 55,
+      "text_position": "below"
+    },
+    "two-photo": {
+      "layout": "stacked",
+      "gap_pct": 3
+    },
+    "text-only": {
+      "text_alignment": "center",
+      "decorative_border": false
+    }
+  },
+  "quote_pool": [
+    "Love is being stupid together.",
+    "I love you more than pizza. And that's saying a lot.",
+    "You're the cheese to my macaroni.",
+    "We go together like copy and paste.",
+    "I love you even when I'm hungry.",
+    "You're my favorite notification.",
+    "Relationship status: Making everyone jealous since day one.",
+    "I like you even when I'm hangry. That's true love."
+  ]
+}

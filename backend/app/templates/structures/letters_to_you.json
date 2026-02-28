@@ -1,0 +1,11 @@
+{
+  "slug": "letters_to_you",
+  "name": "Letters to You",
+  "description": "A series of heartfelt letters written to your partner",
+  "preview_emoji": "\u2709\ufe0f",
+  "chapter_strategy": "epistolary",
+  "typical_chapters": ["Dear You, From The Start", "Things I Never Said", "What I Love About Us", "My Favorite Version of You", "Here's to Forever"],
+  "best_with_vibes": ["romantic_warm", "bittersweet_lovely", "cinematic_poetic"],
+  "min_photos": 6,
+  "pacing_hint": "Text-heavy chapters with COLLAGE_PLUS_LETTER spreads. Intimate, personal"
+}

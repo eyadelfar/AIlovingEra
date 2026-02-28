@@ -18,10 +18,11 @@ services:
       - BACKEND_URL=http://backend:8000   # Docker internal DNS to the backend service
     volumes:
       - ./frontend:/app            # live reload
-      - /app/node_modules          # keep container's node_modules, not the host's
+      - frontend_node_modules:/app/node_modules   # named volume — survives rebuilds cleanly
     depends_on:
       - backend
     restart: unless-stopped
 
 volumes:
   whisper_cache:
+  frontend_node_modules:

@@ -1,0 +1,11 @@
+{
+  "slug": "milestones",
+  "name": "Milestones",
+  "description": "Key relationship milestones, each given its own chapter",
+  "preview_emoji": "\ud83c\udfc6",
+  "chapter_strategy": "milestone-based",
+  "typical_chapters": ["The First Date", "The Moment We Knew", "Saying Yes", "Building Our Home", "Today and Tomorrow"],
+  "best_with_vibes": ["romantic_warm", "cinematic_poetic", "minimal_luxury"],
+  "min_photos": 6,
+  "pacing_hint": "Each chapter is a standalone peak moment. Hero spreads dominate"
+}

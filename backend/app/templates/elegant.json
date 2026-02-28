@@ -1,0 +1,50 @@
+{
+  "slug": "elegant",
+  "name": "Elegant",
+  "description": "Refined, sophisticated design with muted tones and clean lines",
+  "preview_emoji": "sparkles",
+  "ai_tone": "poetic-elegant",
+  "ai_style_prompt": "Enhance with soft contrast, desaturated elegance, and clean luminous quality. Subtle and refined.",
+  "color_palette": {
+    "primary": "#2C3E50",
+    "secondary": "#BDC3C7",
+    "accent": "#E8D5B7",
+    "background": "#FAFAFA",
+    "text_primary": "#2C3E50",
+    "text_caption": "#7F8C8D"
+  },
+  "font_config": {
+    "heading": "Cinzel",
+    "body": "Libre Baskerville",
+    "caption": "Josefin Sans",
+    "quote": "EB Garamond"
+  },
+  "layout_presets": {
+    "cover": {
+      "photo_position": "center-framed",
+      "title_position": "center-top"
+    },
+    "single-photo": {
+      "photo_height_pct": 55,
+      "text_position": "below"
+    },
+    "two-photo": {
+      "layout": "side-by-side",
+      "gap_pct": 3
+    },
+    "text-only": {
+      "text_alignment": "center",
+      "decorative_border": true
+    }
+  },
+  "quote_pool": [
+    "The greatest thing you'll ever learn is just to love and be loved in return.",
+    "Love recognizes no barriers.",
+    "To love and be loved is to feel the sun from both sides.",
+    "Grow old with me, the best is yet to be.",
+    "Love is composed of a single soul inhabiting two bodies.",
+    "Where there is love there is life.",
+    "The heart has its reasons which reason knows not.",
+    "Two souls with but a single thought, two hearts that beat as one."
+  ]
+}

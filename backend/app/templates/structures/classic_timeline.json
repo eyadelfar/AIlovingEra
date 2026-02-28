@@ -1,0 +1,11 @@
+{
+  "slug": "classic_timeline",
+  "name": "Classic Timeline",
+  "description": "Your story told in chronological order, from first meeting to now",
+  "preview_emoji": "\u23f3",
+  "chapter_strategy": "chronological",
+  "typical_chapters": ["How We Met", "Early Days", "Adventures Together", "Growing Together", "Where We Are Now"],
+  "best_with_vibes": ["romantic_warm", "cinematic_poetic", "bittersweet_lovely"],
+  "min_photos": 8,
+  "pacing_hint": "Start slow, build momentum, end strong with current-day hero spread"
+}

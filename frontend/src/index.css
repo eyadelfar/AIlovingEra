@@ -8,6 +8,21 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  /* ── Z-index scale ── */
+  --z-page: 0;
+  --z-sticky: 20;
+  --z-navbar: 30;
+  --z-popover: 40;
+  --z-modal: 50;
+  --z-lightbox: 50;
+  --z-toast: 60;
+
+  /* ── Layout tokens ── */
+  --navbar-h: 4rem; /* 64px — h-16 */
+
+  /* ── Scrollbar styling ── */
+  scrollbar-color: #374151 transparent;
 }
 
 body {
@@ -17,3 +32,19 @@ body {
   background: #030712;
   color: #f1f5f9;
 }
+
+/* Anchor scroll offset for fixed navbar */
+html {
+  scroll-padding-top: var(--navbar-h);
+}
+
+/* Body scroll lock when modal is open */
+body.modal-open {
+  overflow: hidden;
+}
+
+/* Custom scrollbar for Webkit */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #4b5563; }

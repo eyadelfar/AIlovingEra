@@ -10,4 +10,5 @@ class AbstractAIService(ABC):
         prompt: str,
         images: list[bytes],
         mime_types: list[str],
+        max_output_tokens: int | None = None,
     ) -> AIServiceResult: ...

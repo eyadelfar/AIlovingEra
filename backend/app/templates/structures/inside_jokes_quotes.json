@@ -1,0 +1,11 @@
+{
+  "slug": "inside_jokes_quotes",
+  "name": "Inside Jokes & Quotes",
+  "description": "A collection of the phrases, jokes, and quotes that define your relationship",
+  "preview_emoji": "\ud83d\ude02",
+  "chapter_strategy": "thematic-snippets",
+  "typical_chapters": ["Things Only We Understand", "Our Catchphrases", "The Memes That Define Us", "Words That Stuck", "Why We Work"],
+  "best_with_vibes": ["playful_meme", "comic_illustrated", "minimal_luxury"],
+  "min_photos": 6,
+  "pacing_hint": "Short, punchy chapters. Quote-heavy layouts. Less narrative, more vibe"
+}

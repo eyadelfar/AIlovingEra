@@ -1,8 +1,13 @@
+import logging
+
 from google import genai
 from google.genai import types
 
 from app.interfaces.ai_service import AbstractAIService
 from app.models.ai_result import AIServiceResult
+from app.services.gemini_rate_limiter import with_rate_limit_retry
+
+logger = logging.getLogger(__name__)
 
 
 class GeminiService(AbstractAIService):
@@ -24,6 +29,7 @@ class GeminiService(AbstractAIService):
         prompt: str,
         images: list[bytes],
         mime_types: list[str],
+        max_output_tokens: int | None = None,
     ) -> AIServiceResult:
         # Build parts list: uploaded images first, then the prompt text.
         parts: list = [
@@ -32,13 +38,26 @@ class GeminiService(AbstractAIService):
         ]
         parts.append(prompt)
 
-        response = await self._client.aio.models.generate_content(
-            model=self._model_name,
-            contents=parts,
-            config=types.GenerateContentConfig(
-                response_modalities=self._modalities,
-            ),
-        )
+        config_kwargs = {"response_modalities": self._modalities}
+        if max_output_tokens is not None:
+            config_kwargs["max_output_tokens"] = max_output_tokens
+
+        try:
+            response = await with_rate_limit_retry(
+                lambda: self._client.aio.models.generate_content(
+                    model=self._model_name,
+                    contents=parts,
+                    config=types.GenerateContentConfig(**config_kwargs),
+                )
+            )
+        except ValueError:
+            raise
+        except Exception as exc:
+            logger.error("Gemini API call failed: %s", exc)
+            raise ValueError(f"AI service error: {exc}") from exc
+
+        if not response.parts:
+            raise ValueError("Gemini returned no content — the response may have been blocked by safety filters.")
 
         text_parts: list[str] = []
         output_images: list[bytes] = []

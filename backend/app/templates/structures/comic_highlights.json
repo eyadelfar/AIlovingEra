@@ -1,0 +1,11 @@
+{
+  "slug": "comic_highlights",
+  "name": "Comic Highlights",
+  "description": "Your love story told as comic book episodes with narrator boxes and splash pages",
+  "preview_emoji": "\ud83d\udcac",
+  "chapter_strategy": "episode-based",
+  "typical_chapters": ["Origin Story", "The Sidekick Arc", "Boss Battle: Long Distance", "Power-Up: Moving In", "Post-Credits Scene"],
+  "best_with_vibes": ["comic_illustrated", "playful_meme"],
+  "min_photos": 8,
+  "pacing_hint": "Comic-panel style layouts. Narrator boxes between clusters. Hero splash pages"
+}

@@ -1,0 +1,11 @@
+{
+  "slug": "first_message_to_now",
+  "name": "First Message to Now",
+  "description": "From the first DM to today, tracing your digital-to-real love story",
+  "preview_emoji": "\ud83d\udcf1",
+  "chapter_strategy": "communication-milestones",
+  "typical_chapters": ["The First Message", "Late Night Conversations", "Meeting IRL", "Inside Jokes & Code Words", "Us Now"],
+  "best_with_vibes": ["playful_meme", "romantic_warm", "comic_illustrated"],
+  "min_photos": 6,
+  "pacing_hint": "Start with text/screenshot style spreads, transition to photo-heavy. Modern feel"
+}

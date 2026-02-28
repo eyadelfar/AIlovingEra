@@ -1,3 +1,4 @@
+import asyncio
 import io
 
 from faster_whisper import WhisperModel
@@ -12,8 +13,10 @@ class WhisperService(AbstractSTTService):
         # Model is downloaded once and persisted in the Docker whisper_cache volume.
         self._model = WhisperModel(model_size, device="cpu", compute_type="int8")
 
-    def transcribe(self, audio_bytes: bytes, mime_type: str) -> str:
-        # seek(0) is required — BytesIO pointer may not start at position 0
+    async def transcribe(self, audio_bytes: bytes, mime_type: str) -> str:
+        return await asyncio.to_thread(self._transcribe_sync, audio_bytes)
+
+    def _transcribe_sync(self, audio_bytes: bytes) -> str:
         audio_buffer = io.BytesIO(audio_bytes)
         audio_buffer.seek(0)
         segments, _ = self._model.transcribe(audio_buffer)

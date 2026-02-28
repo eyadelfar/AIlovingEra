@@ -1,0 +1,11 @@
+{
+  "slug": "trips_adventures",
+  "name": "Trips & Adventures",
+  "description": "Organized by trips and adventures, from weekend escapes to big journeys",
+  "preview_emoji": "\u2708\ufe0f",
+  "chapter_strategy": "location-based",
+  "typical_chapters": ["Our First Trip", "Weekend Escapes", "The Big Adventure", "Hidden Gems", "Home Is Wherever You Are"],
+  "best_with_vibes": ["playful_meme", "cinematic_poetic", "romantic_warm"],
+  "min_photos": 10,
+  "pacing_hint": "Use location shifts as chapter boundaries. Dense montages for travel clusters"
+}

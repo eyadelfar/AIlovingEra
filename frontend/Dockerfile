@@ -9,4 +9,5 @@ COPY . .
 
 EXPOSE 5173
 
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+# Run npm install at startup so bind-mounted package.json changes are picked up
+CMD ["sh", "-c", "npm install && npm run dev -- --host 0.0.0.0"]

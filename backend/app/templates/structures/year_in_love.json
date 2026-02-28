@@ -1,0 +1,11 @@
+{
+  "slug": "year_in_love",
+  "name": "Year in Love",
+  "description": "A year of memories organized by season",
+  "preview_emoji": "\ud83c\udf42",
+  "chapter_strategy": "seasonal",
+  "typical_chapters": ["Winter: Cozy Beginnings", "Spring: New Growth", "Summer: Golden Days", "Fall: Deeper Roots"],
+  "best_with_vibes": ["romantic_warm", "bittersweet_lovely", "cinematic_poetic"],
+  "min_photos": 8,
+  "pacing_hint": "4 chapters, one per season. Balanced density across seasons"
+}

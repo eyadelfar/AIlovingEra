@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: { extend: {} }
+};
+</script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Lora:ital,wght@0,400;0,700;1,400&family=Dancing+Script:wght@400;700&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@300;400;700;900&family=Raleway:wght@300;400;700&display=swap');
+
+@page {
+  size: {{ page_width_mm }}mm {{ page_height_mm }}mm;
+  margin: {{ bleed_mm }}mm;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  width: {{ page_width_mm }}mm;
+  margin: 0;
+  padding: 0;
+  background: #111;
+}
+
+.book-page {
+  width: {{ page_width_mm - 2 * bleed_mm }}mm;
+  height: {{ page_height_mm - 2 * bleed_mm }}mm;
+  position: relative;
+  overflow: hidden;
+  page-break-after: always;
+  page-break-inside: avoid;
+}
+
+.book-page:last-child {
+  page-break-after: avoid;
+}
+
+img {
+  display: block;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.aspect-3-4 {
+  aspect-ratio: 3/4;
+}
+
+/* Force color rendering in print */
+* {
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+</style>
+</head>
+<body>
+{{ content }}
+</body>
+</html>
