@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { TEMPLATE_STYLES } from '../viewer/templateStyles';
 import { PageOrnaments } from '../viewer/PageOrnaments';
 import { IMAGE_LOOK_CSS_FILTERS } from '../../lib/previewFilters';
@@ -8,6 +9,16 @@ const TEMPLATE_META = {
   meme_funny: { accent: 'border-amber-500', badge: 'bg-amber-500/20 text-amber-300' },
   elegant: { accent: 'border-slate-400', badge: 'bg-slate-500/20 text-slate-300' },
   vintage: { accent: 'border-amber-700', badge: 'bg-amber-700/20 text-amber-400' },
+};
+
+// Maps slug → i18n key prefix in wizard namespace
+const TEMPLATE_I18N_MAP = {
+  romantic: 'templateRomantic',
+  vintage: 'templateVintage',
+  elegant: 'templateElegant',
+  meme_funny: 'templateMemeFunny',
+  cinematic: 'templateCinematic',
+  minimal: 'templateMinimal',
 };
 
 function MiniPagePreview({ slug, previewPhoto, imageLook }) {
@@ -53,12 +64,19 @@ function MiniPagePreview({ slug, previewPhoto, imageLook }) {
 }
 
 export default function TemplateCard({ template, isSelected, onSelect, previewPhoto, imageLook }) {
+  const { t } = useTranslation('wizard');
+  const { t: tc } = useTranslation();
   const meta = TEMPLATE_META[template.slug] || TEMPLATE_META.romantic;
+
+  const nameKey = TEMPLATE_I18N_MAP[template.slug];
+  const descKey = nameKey ? `${nameKey}Desc` : null;
+  const displayName = nameKey ? t(nameKey) : template.name;
+  const displayDesc = descKey ? t(descKey) : template.description;
 
   return (
     <button
       onClick={() => onSelect(template.slug)}
-      className={`w-full text-left rounded-2xl border-2 p-4 transition-all hover:scale-[1.02] ${
+      className={`w-full text-start rounded-2xl border-2 p-4 transition-all hover:scale-[1.02] ${
         isSelected
           ? `${meta.accent} bg-gray-900/60 shadow-lg`
           : 'border-gray-700 bg-gray-900/40 hover:border-gray-600'
@@ -71,12 +89,12 @@ export default function TemplateCard({ template, isSelected, onSelect, previewPh
         </div>
         <div className="flex-1 min-w-0 pt-1">
           <div className="flex items-center gap-2 mb-1">
-            <h3 className="font-semibold text-lg">{template.name}</h3>
+            <h3 className="font-semibold text-lg">{displayName}</h3>
             {isSelected && (
-              <span className={`text-xs px-2 py-0.5 rounded-full ${meta.badge}`}>Selected</span>
+              <span className={`text-xs px-2 py-0.5 rounded-full ${meta.badge}`}>{tc('selected')}</span>
             )}
           </div>
-          <p className="text-sm text-gray-400 leading-relaxed">{template.description}</p>
+          <p className="text-sm text-gray-400 leading-relaxed">{displayDesc}</p>
         </div>
       </div>
     </button>

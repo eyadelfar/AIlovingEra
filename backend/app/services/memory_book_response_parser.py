@@ -1,9 +1,9 @@
 """Slim facade that implements AbstractResponseParser by delegating to the parsing subpackage."""
 
 import json
-import logging
 import re
 
+import structlog
 from app.interfaces.response_parser import AbstractResponseParser
 from app.models.schemas import (
     CoverOption,
@@ -21,7 +21,7 @@ from app.services.parsing.fallback_builder import fallback
 from app.services.parsing.json_extractor import extract_json, repair_json
 from app.services.parsing.page_flattener import flatten_chapters_to_pages
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 
 class MemoryBookResponseParser(AbstractResponseParser):
@@ -35,32 +35,32 @@ class MemoryBookResponseParser(AbstractResponseParser):
             data = json.loads(json_str)
             return self._extract_photo_list(data)
         except Exception:
-            logger.warning("parse_photo_analysis: initial parse failed, trying repair")
+            logger.warning("parse_photo_analysis_failed_initial")
             try:
                 json_str = extract_json(raw_text)
                 repaired = repair_json(json_str)
                 data = json.loads(repaired)
                 result = self._extract_photo_list(data)
-                logger.info("parse_photo_analysis: repair succeeded, %d items", len(result))
+                logger.info("parse_photo_analysis_repair_succeeded", item_count=len(result))
                 return result
             except Exception:
-                logger.error("parse_photo_analysis: repair also FAILED", exc_info=True)
+                logger.error("parse_photo_analysis_repair_failed", exc_info=True)
                 return []
 
     @staticmethod
     def _extract_photo_list(data) -> list[dict]:
         """Extract photo list from various JSON shapes."""
         if isinstance(data, list):
-            logger.info("parse_photo_analysis: success, %d items (list)", len(data))
+            logger.info("parse_photo_analysis_success", item_count=len(data), shape="list")
             return data
         if isinstance(data, dict):
             if "photos" in data:
-                logger.info("parse_photo_analysis: success, %d items", len(data["photos"]))
+                logger.info("parse_photo_analysis_success", item_count=len(data["photos"]), shape="dict.photos")
                 return data["photos"]
             if "photo_index" in data:
-                logger.info("parse_photo_analysis: success, 1 item (single object)")
+                logger.info("parse_photo_analysis_success", item_count=1, shape="single_object")
                 return [data]
-        logger.warning("parse_photo_analysis: parsed JSON but unexpected shape")
+        logger.warning("parse_photo_analysis_unexpected_shape")
         return []
 
     def parse_clusters_from_analysis(self, raw_text: str) -> list[dict]:
@@ -78,7 +78,11 @@ class MemoryBookResponseParser(AbstractResponseParser):
         for a in analyses:
             cid = a.get("cluster_id")
             if cid is not None:
-                cluster_map.setdefault(int(cid), []).append(a)
+                try:
+                    cluster_map.setdefault(int(cid), []).append(a)
+                except (TypeError, ValueError):
+                    # Non-numeric cluster_id (e.g., "park_scene") — hash to int
+                    cluster_map.setdefault(hash(str(cid)) % 10000, []).append(a)
 
         clusters: list[dict] = []
         for cid, members in sorted(cluster_map.items()):
@@ -108,19 +112,41 @@ class MemoryBookResponseParser(AbstractResponseParser):
             data = json.loads(json_str)
             return self._build_draft_from_data(data, num_photos)
         except json.JSONDecodeError:
-            logger.warning("parse_narrative: initial JSON parse failed, trying repair")
+            logger.warning("parse_narrative_json_failed")
             try:
                 json_str = extract_json(raw_text)
                 repaired = repair_json(json_str)
                 data = json.loads(repaired)
-                logger.info("parse_narrative: repair succeeded")
+                logger.info("parse_narrative_repair_succeeded")
                 return self._build_draft_from_data(data, num_photos)
             except Exception:
-                logger.warning("parse_narrative: repair failed, trying partial parse")
+                logger.warning("parse_narrative_repair_failed_partial")
                 return self._partial_parse(raw_text, num_photos, photo_analyses)
         except Exception:
-            logger.error("parse_narrative: FAILED", exc_info=True)
+            logger.error("parse_narrative_failed", exc_info=True)
             return self._partial_parse(raw_text, num_photos, photo_analyses)
+
+    def parse_plan(self, raw_text: str) -> dict:
+        """Parse structural plan from Stage C. Strip reasoning field."""
+        try:
+            json_str = extract_json(raw_text)
+            data = json.loads(json_str)
+            if isinstance(data, dict):
+                # Remove reasoning field (chain-of-thought) from output
+                data.pop("reasoning", None)
+                return data
+        except Exception:
+            logger.warning("parse_plan_initial_failed")
+            try:
+                json_str = extract_json(raw_text)
+                repaired = repair_json(json_str)
+                data = json.loads(repaired)
+                if isinstance(data, dict):
+                    data.pop("reasoning", None)
+                    return data
+            except Exception:
+                logger.error("parse_plan_repair_failed", exc_info=True)
+        return {"chapters": []}
 
     def parse_questions(self, raw_text: str) -> list[dict]:
         try:
@@ -218,8 +244,10 @@ class MemoryBookResponseParser(AbstractResponseParser):
             confidence=confidence,
         )
         logger.info(
-            "parse_narrative: success — title=%r, %d chapters, %d pages",
-            draft.title, len(draft.chapters), len(draft.pages),
+            "parse_narrative_success",
+            title=draft.title,
+            num_chapters=len(draft.chapters),
+            num_pages=len(draft.pages),
         )
         return draft
 
@@ -229,7 +257,7 @@ class MemoryBookResponseParser(AbstractResponseParser):
         num_photos: int,
         photo_analyses: list[dict] | None = None,
     ) -> MemoryBookDraft:
-        logger.info("_partial_parse: attempting field-by-field extraction")
+        logger.info("partial_parse_attempting")
         try:
             json_str = extract_json(raw_text)
             repaired = repair_json(json_str)
@@ -240,7 +268,7 @@ class MemoryBookResponseParser(AbstractResponseParser):
             subtitle_match = re.search(r'"subtitle"\s*:\s*"([^"]*)"', repaired)
             subtitle = subtitle_match.group(1) if subtitle_match else ""
 
-            chapters_match = re.search(r'"chapters"\s*:\s*(\[[\s\S]*\])', repaired)
+            chapters_match = re.search(r'"chapters"\s*:\s*(\[[\s\S]*?\])\s*[,}]', repaired)
             chapters = []
             if chapters_match:
                 try:
@@ -248,10 +276,10 @@ class MemoryBookResponseParser(AbstractResponseParser):
                     chapters_data = json.loads(chapters_text)
                     chapters = parse_chapters({"chapters": chapters_data})
                 except Exception:
-                    logger.warning("_partial_parse: chapters extraction failed")
+                    logger.warning("partial_parse_chapters_failed")
 
             if title and chapters:
-                logger.info("_partial_parse: recovered title=%r, %d chapters", title, len(chapters))
+                logger.info("partial_parse_recovered", title=title, num_chapters=len(chapters))
                 pages = flatten_chapters_to_pages(chapters, {"title": title})
                 return MemoryBookDraft(
                     title=title,
@@ -261,14 +289,14 @@ class MemoryBookResponseParser(AbstractResponseParser):
                 )
 
             if title:
-                logger.info("_partial_parse: recovered title only, using fallback chapters")
+                logger.info("partial_parse_title_only", title=title)
                 fb = fallback(num_photos, photo_analyses)
                 fb.title = title
                 fb.subtitle = subtitle
                 return fb
 
         except Exception:
-            logger.warning("_partial_parse: failed entirely", exc_info=True)
+            logger.warning("partial_parse_failed", exc_info=True)
 
-        logger.warning("_partial_parse: falling back to generic fallback")
+        logger.warning("partial_parse_using_fallback")
         return fallback(num_photos, photo_analyses)

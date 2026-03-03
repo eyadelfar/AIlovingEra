@@ -1,0 +1,32 @@
+examples:
+  - context: "Chapter opener, 4 photos of couple being silly"
+    photos:
+      - desc: "Couple making matching silly faces"
+      - desc: "Failed selfie, one person blinking"
+      - desc: "Couple in matching outfits"
+      - desc: "One person photobombing the other"
+    expected:
+      layout: FOUR_GRID
+      heading_text: "How It Started vs How It's Going"
+      body_text: "Plot twist: we're exactly the same amount of unhinged as day one. The only difference is now we have matching outfits for it."
+      caption_text: "Chaos, but make it cute."
+
+  - context: "Milestone moment, 1 photo of couple's first apartment"
+    photos:
+      - desc: "Couple sitting on floor of empty apartment with pizza box"
+    expected:
+      layout: PHOTO_PLUS_QUOTE
+      heading_text: "Adulting Unlocked"
+      body_text: "Day one of cohabitation: no furniture, one fork, and a large pepperoni. Honestly, peak existence."
+      caption_text: "Our interior design era (pizza box chic)."
+      quote_text: "Home is wherever the WiFi connects automatically."
+
+  - context: "Chapter closer, 2 photos of couple at party"
+    photos:
+      - desc: "Couple dancing terribly at wedding"
+      - desc: "Couple asleep on couch afterwards"
+    expected:
+      layout: TWO_BALANCED
+      heading_text: "The Main Characters"
+      body_text: "We showed up. We danced like no one was watching (they were). We closed the venue. Then we fell asleep in our formal wear like the absolute legends we are."
+      caption_text: "From ballroom to couch in 2.5 hours."

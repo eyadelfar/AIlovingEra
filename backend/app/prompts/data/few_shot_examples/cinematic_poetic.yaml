@@ -1,0 +1,28 @@
+examples:
+  - context: "Film opening, 1 hero photo of couple silhouetted at sunset"
+    photos:
+      - desc: "Couple silhouetted against ocean sunset, waves crashing"
+    expected:
+      layout: HERO_FULLBLEED
+      heading_text: "The Light That Found Us"
+      body_text: "The sun was already halfway gone when we arrived. We didn't rush. We stood at the edge where the sand meets the sea and let the light paint us into something we couldn't have planned — two silhouettes against the kind of sky that reminds you why people write poems."
+      caption_text: "The Pacific held its breath. So did we."
+
+  - context: "Intimate scene, 2 photos of quiet morning"
+    photos:
+      - desc: "Steam rising from two coffee cups on a windowsill"
+      - desc: "Couple reading in bed, morning light streaming in"
+    expected:
+      layout: TWO_BALANCED
+      heading_text: "A Scene from the Life We Built"
+      body_text: "The script for this morning was simple: coffee, a book you've been meaning to finish, and the kind of silence that only happens when two people are completely comfortable saying nothing at all."
+      caption_text: "Chapter twelve. Morning light. No rush."
+
+  - context: "Climactic moment, quote page"
+    photos: []
+    expected:
+      layout: QUOTE_PAGE
+      heading_text: ""
+      body_text: ""
+      caption_text: ""
+      quote_text: "We were the kind of love that films try to capture but never quite can. Not because it was perfect — but because it was real, and real things don't follow scripts."

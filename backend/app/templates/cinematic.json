@@ -1,0 +1,41 @@
+{
+  "slug": "cinematic",
+  "name": "Cinematic",
+  "description": "Dark, dramatic design with gold accents and lyrical typography",
+  "preview_emoji": "movie_camera",
+  "primary_vibe": "cinematic_poetic",
+  "ai_tone": "cinematic-poetic",
+  "ai_style_prompt": "Enhance with dramatic contrast, deep shadows, golden highlights, and cinematic color grading. Think film noir meets golden hour.",
+  "color_palette": {
+    "primary": "#1A1A2E",
+    "secondary": "#E8C547",
+    "accent": "#16213E",
+    "background": "#0A0A0F",
+    "text_primary": "#E8E8E8",
+    "text_caption": "#A0A0B0"
+  },
+  "font_config": {
+    "heading": "Cormorant Garamond",
+    "body": "Source Serif Pro",
+    "caption": "Italiana",
+    "quote": "Playfair Display"
+  },
+  "layout_presets": {
+    "cover": {
+      "photo_position": "full-bleed",
+      "title_position": "center-bottom"
+    },
+    "single-photo": {
+      "photo_height_pct": 65,
+      "text_position": "below"
+    },
+    "two-photo": {
+      "layout": "side-by-side",
+      "gap_pct": 3
+    },
+    "text-only": {
+      "text_alignment": "center",
+      "decorative_border": true
+    }
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "slug": "minimal",
+  "name": "Minimal Luxury",
+  "description": "Clean, understated design with extreme whitespace and subtle gold accents",
+  "preview_emoji": "white_large_square",
+  "primary_vibe": "minimal_luxury",
+  "ai_tone": "minimal-luxury",
+  "ai_style_prompt": "Enhance with clean contrast, muted tones, and natural luminosity. Subtle and restrained — let the photo speak.",
+  "color_palette": {
+    "primary": "#2D2D2D",
+    "secondary": "#C5A880",
+    "accent": "#E8DDD3",
+    "background": "#FAFAF8",
+    "text_primary": "#2D2D2D",
+    "text_caption": "#8A8A8A"
+  },
+  "font_config": {
+    "heading": "Montserrat",
+    "body": "Inter",
+    "caption": "Josefin Sans",
+    "quote": "Cormorant"
+  },
+  "layout_presets": {
+    "cover": {
+      "photo_position": "center-framed",
+      "title_position": "center-bottom"
+    },
+    "single-photo": {
+      "photo_height_pct": 50,
+      "text_position": "below"
+    },
+    "two-photo": {
+      "layout": "side-by-side",
+      "gap_pct": 5
+    },
+    "text-only": {
+      "text_alignment": "center",
+      "decorative_border": false
+    }
+  }
+}

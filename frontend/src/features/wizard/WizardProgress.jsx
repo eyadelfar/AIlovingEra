@@ -1,6 +1,8 @@
+import { useTranslation } from 'react-i18next';
 import { WIZARD_STEPS } from '../../lib/constants';
 
 export default function WizardProgress({ currentStep }) {
+  const { t } = useTranslation('wizard');
   return (
     <div className="flex items-center justify-center gap-2 sm:gap-4 mb-10">
       {WIZARD_STEPS.map((step, i) => {
@@ -28,7 +30,7 @@ export default function WizardProgress({ currentStep }) {
                 )}
               </div>
               <span className={`text-xs hidden sm:block ${isActive ? 'text-white font-medium' : 'text-gray-500'}`}>
-                {step.label}
+                {t(step.i18nLabel)}
               </span>
             </div>
 

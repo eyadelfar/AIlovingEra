@@ -1,0 +1,280 @@
+romantic_warm:
+  writing_style: >
+    Write with warmth, tenderness, and heartfelt sincerity.
+    Use vivid sensory details — light, touch, season cues.
+    Embrace emotional moments without melodrama or over-sentimentality.
+  caption_range: [8, 18]
+  humor_level: 2
+  density_preference: balanced
+  avoid:
+    - "generic Hallmark cliches unless grounded by user details"
+    - "over-the-top melodrama"
+    - "therapy-speak"
+  font_recommendations:
+    heading: "Playfair Display"
+    body: "Lora"
+    caption: "Dancing Script"
+    quote: "Cormorant Garamond"
+  color_palette_affinity:
+    primary: "#8B2252"
+    secondary: "#D4A574"
+    accent: "#F5E6D3"
+    background: "#FFF8F0"
+  layout_preferences:
+    preferred: ["HERO_FULLBLEED", "TWO_BALANCED", "PHOTO_PLUS_QUOTE"]
+    avoid: ["WALL_8_10"]
+  heading_style:
+    tone: "warm, evocative"
+    examples:
+      - "A Love Written in Light"
+      - "Where Our Story Begins"
+      - "The Way You Looked at Me"
+  quote_style:
+    tone: "heartfelt, specific, grounded in observable moments"
+    seed_examples:
+      - "Some moments are too beautiful for just one photo."
+      - "I didn't know what forever felt like until I met you."
+      - "The best part of my day is the part with you in it."
+      - "Every time you laugh, I fall in love all over again."
+  few_shot_captions:
+    - photo_desc: "Couple laughing at a cafe table"
+      good: "Three espressos deep and still not ready to leave."
+      bad: "Love is in the air when we're together."
+    - photo_desc: "Couple walking hand in hand at sunset"
+      good: "Golden hour and your hand finding mine."
+      bad: "Walking into the sunset of our love story."
+    - photo_desc: "Close-up of couple's intertwined hands"
+      good: "Your thumb tracing circles on my palm like a secret language."
+      bad: "Two souls holding on to each other forever."
+
+bittersweet_lovely:
+  writing_style: >
+    Write with gentle melancholy blended with beauty and gratitude.
+    Acknowledge the passage of time. The most beautiful things carry a
+    tinge of bittersweetness. Still loving — never depressing.
+  caption_range: [8, 18]
+  humor_level: 1
+  density_preference: balanced
+  avoid:
+    - "forced sadness"
+    - "depressing or bleak language"
+    - "trauma dumping"
+    - "pity"
+  font_recommendations:
+    heading: "Cormorant Garamond"
+    body: "Source Serif Pro"
+    caption: "Lora"
+    quote: "EB Garamond"
+  color_palette_affinity:
+    primary: "#5D4E6D"
+    secondary: "#C4A882"
+    accent: "#E8D5C4"
+    background: "#F5F0EB"
+  layout_preferences:
+    preferred: ["PHOTO_PLUS_QUOTE", "COLLAGE_PLUS_LETTER", "HERO_FULLBLEED"]
+    avoid: ["WALL_8_10", "SIX_MONTAGE"]
+  heading_style:
+    tone: "wistful, tender, nostalgic"
+    examples:
+      - "The Beautiful Ache of Remembering"
+      - "What Time Couldn't Touch"
+      - "Still Here, Still Us"
+  quote_style:
+    tone: "nostalgic, tender, acknowledging time's passage with grace"
+    seed_examples:
+      - "We didn't know those were the good old days while we were living them."
+      - "Some memories feel like home even when the place no longer exists."
+      - "The most beautiful things are the ones we almost didn't notice."
+      - "Time passes, but the way you made me feel never fades."
+  few_shot_captions:
+    - photo_desc: "Old photo of couple at a park bench"
+      good: "That bench is probably gone now, but this moment isn't."
+      bad: "Sadly, time passes and things change."
+    - photo_desc: "Couple at a farewell dinner"
+      good: "The last night before everything changed — and we didn't even know."
+      bad: "A sad dinner marking the end of an era."
+
+playful_meme:
+  writing_style: >
+    Write with humor, playfulness, and witty observations.
+    Include inside-joke style commentary. Use modern internet-savvy language
+    but keep it safe to gift. NEVER humiliating, NEVER punching down.
+  caption_range: [8, 18]
+  humor_level: 9
+  density_preference: dense
+  avoid:
+    - "cringe"
+    - "anything that could embarrass the recipient"
+    - "mean-spirited humor"
+    - "socially risky jokes"
+  font_recommendations:
+    heading: "Bangers"
+    body: "Comic Neue"
+    caption: "Permanent Marker"
+    quote: "Patrick Hand"
+  color_palette_affinity:
+    primary: "#FF6B35"
+    secondary: "#FFD166"
+    accent: "#06D6A0"
+    background: "#FFFBE6"
+  layout_preferences:
+    preferred: ["FOUR_GRID", "THREE_GRID", "SIX_MONTAGE"]
+    avoid: ["COLLAGE_PLUS_LETTER"]
+  heading_style:
+    tone: "punchy, witty, modern"
+    examples:
+      - "How It Started vs How It's Going"
+      - "The Glow-Up Arc"
+      - "Main Character Energy"
+  quote_style:
+    tone: "funny, relatable, couple-specific humor"
+    seed_examples:
+      - "You're the reason I check my phone and smile like an idiot."
+      - "10/10 would swipe right again."
+      - "My favorite notification is still you."
+      - "We're basically the same person and I love that for us."
+  few_shot_captions:
+    - photo_desc: "Couple making silly faces at camera"
+      good: "POV: you found someone equally unhinged."
+      bad: "We are so funny and silly together!"
+    - photo_desc: "Couple at a fancy restaurant"
+      good: "Acting like adults for exactly one evening."
+      bad: "We went to a restaurant together LOL."
+
+comic_illustrated:
+  writing_style: >
+    Real moments reimagined with comic narration. Use narrator boxes,
+    speech-bubble style captions, and sound effects sparingly.
+    Think graphic novel memoir — NOT fictional plot.
+  caption_range: [8, 18]
+  humor_level: 6
+  density_preference: dense
+  avoid:
+    - "inventing fictional plots"
+    - "over-the-top comic violence"
+    - "mean-spirited humor"
+  font_recommendations:
+    heading: "Bangers"
+    body: "Comic Neue"
+    caption: "Permanent Marker"
+    quote: "Patrick Hand"
+  color_palette_affinity:
+    primary: "#2E86AB"
+    secondary: "#F6511D"
+    accent: "#FFB400"
+    background: "#FEFAE0"
+  layout_preferences:
+    preferred: ["FOUR_GRID", "THREE_GRID", "HERO_FULLBLEED"]
+    avoid: ["COLLAGE_PLUS_LETTER"]
+  heading_style:
+    tone: "dramatic, episodic, superhero-inspired"
+    examples:
+      - "Origin Story"
+      - "The Plot Twist Nobody Saw Coming"
+      - "Boss Battle: Long Distance"
+  quote_style:
+    tone: "narrator-box style, dramatic reveal, warm punchline"
+    seed_examples:
+      - "Little did they know, this was the beginning of everything."
+      - "And just like that, two worlds collided."
+      - "The plot armor was strong with this one."
+  few_shot_captions:
+    - photo_desc: "Couple meeting for the first time"
+      good: "[NARRATOR] And so, the origin story begins..."
+      bad: "They met and fell in love, the end."
+    - photo_desc: "Couple arguing playfully"
+      good: "*DRAMATIC ZOOM* The great pizza topping debate of 2023."
+      bad: "They are fighting in this photo."
+
+cinematic_poetic:
+  writing_style: >
+    Write with lyrical beauty, metaphors, and flowing prose.
+    Cinematic framing — describe moments like movie scenes.
+    Allow longer captions (20-35 words) sparingly for key emotional beats.
+  caption_range: [10, 35]
+  humor_level: 1
+  density_preference: sparse
+  avoid:
+    - "purple prose without substance"
+    - "overwrought metaphors"
+    - "pretentiousness"
+  font_recommendations:
+    heading: "Cormorant Garamond"
+    body: "Source Serif Pro"
+    caption: "Italiana"
+    quote: "Playfair Display"
+  color_palette_affinity:
+    primary: "#1A1A2E"
+    secondary: "#E8C547"
+    accent: "#16213E"
+    background: "#0A0A0F"
+  layout_preferences:
+    preferred: ["HERO_FULLBLEED", "QUOTE_PAGE", "PHOTO_PLUS_QUOTE"]
+    avoid: ["WALL_8_10", "SIX_MONTAGE"]
+  heading_style:
+    tone: "lyrical, atmospheric, film-title-esque"
+    examples:
+      - "The Light That Found Us"
+      - "A Scene from the Life We Built"
+      - "Frames from a Film We're Still Shooting"
+  quote_style:
+    tone: "poetic, cinematic, atmospheric — like a voiceover in a film"
+    seed_examples:
+      - "Some scenes don't need dialogue. The light says everything."
+      - "We were the kind of love that films try to capture but never quite can."
+      - "This was the scene where everything changed, and neither of us knew it yet."
+      - "In the quiet between frames, that's where the real story lives."
+  few_shot_captions:
+    - photo_desc: "Couple silhouetted against city skyline at dusk"
+      good: "The city held its breath. So did we."
+      bad: "A beautiful and cinematic moment between two lovers."
+    - photo_desc: "Couple in the rain"
+      good: "The rain came down like a curtain call on the longest, best day."
+      bad: "They stood in the rain together romantically."
+
+minimal_luxury:
+  writing_style: >
+    Write with refined sophistication, understated emotion, and graceful brevity.
+    Let white space and imagery speak. Less is more.
+    Every word must earn its place.
+  caption_range: [5, 12]
+  humor_level: 0
+  density_preference: sparse
+  avoid:
+    - "verbosity"
+    - "flowery language"
+    - "excessive adjectives"
+    - "filler words"
+  font_recommendations:
+    heading: "Montserrat"
+    body: "Inter"
+    caption: "Josefin Sans"
+    quote: "Cormorant"
+  color_palette_affinity:
+    primary: "#2D2D2D"
+    secondary: "#C5A880"
+    accent: "#E8DDD3"
+    background: "#FAFAF8"
+  layout_preferences:
+    preferred: ["HERO_FULLBLEED", "QUOTE_PAGE", "TWO_BALANCED"]
+    avoid: ["WALL_8_10", "SIX_MONTAGE", "FOUR_GRID"]
+  heading_style:
+    tone: "understated, elegant, minimal"
+    examples:
+      - "Us"
+      - "The Quiet Between"
+      - "Simply This"
+  quote_style:
+    tone: "restrained, elegant, impactful through brevity"
+    seed_examples:
+      - "Enough."
+      - "This. Always this."
+      - "The simplest truth: you."
+      - "No words needed. Just us."
+  few_shot_captions:
+    - photo_desc: "Couple at a serene lake"
+      good: "Still water. Still us."
+      bad: "A wonderful and beautiful peaceful moment at the gorgeous lake together."
+    - photo_desc: "Close-up of hands touching"
+      good: "Here."
+      bad: "Their hands are reaching out for each other's warmth and comfort."

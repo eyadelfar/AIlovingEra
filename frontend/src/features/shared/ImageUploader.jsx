@@ -1,8 +1,10 @@
 import { useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useDropzone } from 'react-dropzone';
 import { MAX_IMAGES } from '../../lib/constants';
 
 export default function ImageUploader({ onFilesSelected, currentCount = 0 }) {
+  const { t } = useTranslation();
   const remaining = MAX_IMAGES - currentCount;
 
   const onDrop = useCallback((acceptedFiles) => {
@@ -33,15 +35,15 @@ export default function ImageUploader({ onFilesSelected, currentCount = 0 }) {
           </svg>
         </div>
         {isDragActive ? (
-          <p className="text-rose-300 font-medium">Drop your photos here!</p>
+          <p className="text-rose-300 font-medium">{t('dropPhotosHere')}</p>
         ) : (
           <>
-            <p className="text-gray-200 font-medium">Drag & drop your photos here</p>
-            <p className="text-sm text-gray-500">or click to browse. JPG, PNG, WEBP up to {MAX_IMAGES} photos</p>
+            <p className="text-gray-200 font-medium">{t('dragDropPhotos')}</p>
+            <p className="text-sm text-gray-500">{t('browsePhotosHint', { max: MAX_IMAGES })}</p>
           </>
         )}
         {currentCount > 0 && (
-          <p className="text-xs text-gray-500">{currentCount} uploaded, {remaining} remaining</p>
+          <p className="text-xs text-gray-500">{t('uploadedRemaining', { uploaded: currentCount, remaining })}</p>
         )}
       </div>
     </div>

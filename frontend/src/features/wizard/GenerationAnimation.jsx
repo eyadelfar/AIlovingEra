@@ -1,94 +1,95 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import MiniCouple from './MiniCouple';
 
 const STAGES = [
   {
     threshold: 0,
-    labels: [
-      'Creating your characters...',
-      'Scanning your photos...',
-      'Reading EXIF data...',
+    labelKeys: [
+      'stageCreatingCharacters',
+      'stageScanningPhotos',
+      'stageReadingExif',
     ],
   },
   {
     threshold: 10,
-    labels: [
-      'Identifying the couple...',
-      'Examining the light in your photos...',
-      'Detecting faces and scenes...',
+    labelKeys: [
+      'stageIdentifyingCouple',
+      'stageExaminingLight',
+      'stageDetectingFaces',
     ],
   },
   {
     threshold: 20,
-    labels: [
-      'Finding story patterns...',
-      'Grouping memories by moment...',
-      'Identifying your best shots...',
+    labelKeys: [
+      'stageFindingPatterns',
+      'stageGroupingMemories',
+      'stageIdentifyingBestShots',
     ],
   },
   {
     threshold: 30,
-    labels: [
-      'Organizing your timeline...',
-      'Recognizing familiar places...',
-      'Clustering related moments...',
+    labelKeys: [
+      'stageOrganizingTimeline',
+      'stageRecognizingPlaces',
+      'stageClusteringMoments',
     ],
   },
   {
     threshold: 40,
-    labels: [
-      'Outlining chapters...',
-      'Mapping your story arc...',
-      'Planning page layouts...',
+    labelKeys: [
+      'stageOutliningChapters',
+      'stageMappingStoryArc',
+      'stagePlanningLayouts',
     ],
   },
   {
     threshold: 50,
-    labels: [
-      'Writing your love story...',
-      'Crafting chapter titles...',
-      'Finding the perfect words...',
+    labelKeys: [
+      'stageWritingLoveStory',
+      'stageCraftingChapterTitles',
+      'stageFindingPerfectWords',
     ],
   },
   {
     threshold: 60,
-    labels: [
-      'Composing captions...',
-      'Adding heartfelt details...',
-      'Weaving your narrative...',
+    labelKeys: [
+      'stageComposingCaptions',
+      'stageAddingDetails',
+      'stageWeavingNarrative',
     ],
   },
   {
     threshold: 70,
-    labels: [
-      'Designing spreads...',
-      'Selecting layouts...',
-      'Placing photos...',
+    labelKeys: [
+      'stageDesigningSpreads',
+      'stageSelectingLayouts',
+      'stagePlacingPhotos',
     ],
   },
   {
     threshold: 80,
-    labels: [
-      'Styling typography...',
-      'Arranging page compositions...',
-      'Refining the design...',
+    labelKeys: [
+      'stageStylingTypography',
+      'stageArrangingCompositions',
+      'stageRefiningDesign',
     ],
   },
   {
     threshold: 88,
-    labels: [
-      'Adding finishing touches...',
-      'Polishing text...',
-      'Your book is almost ready...',
+    labelKeys: [
+      'stageAddingFinishingTouches',
+      'stagePolishingText',
+      'stageBookAlmostReady',
     ],
   },
   {
     threshold: 95,
-    labels: [
-      'Preparing your masterpiece...',
-      'Final quality check...',
-      'Wrapping it all up...',
+    labelKeys: [
+      'stagePreparingMasterpiece',
+      'stageFinalQualityCheck',
+      'stageWrappingUp',
     ],
   },
 ];
@@ -119,14 +120,22 @@ function PhotoCollage({ images, progress }) {
   // Memoize scatter positions so they don't change on every render
   const positions = useMemo(() => {
     const rng = seededRandom(displayPhotos.reduce((acc, img, i) => acc + i * 7 + 1, 42));
-    const cols = Math.min(4, displayPhotos.length);
+    const count = displayPhotos.length;
+    const cols = Math.min(4, count);
+    const rows = Math.ceil(count / cols);
+    const spacing = 100; // px between grid items
     return displayPhotos.map((_, i) => {
       const row = Math.floor(i / cols);
       const col = i % cols;
-      const gridX = (col / cols) * 100;
-      const gridY = row * 50;
-      const scatterX = (rng() - 0.5) * 60;
-      const scatterY = (rng() - 0.5) * 40;
+      // Grid target: centered around origin (0,0)
+      const gridX = (col - (cols - 1) / 2) * spacing;
+      const gridY = (row - (rows - 1) / 2) * (spacing * 0.6);
+      // Scatter: ring/ellipse distribution around center
+      const angle = (i / count) * 2 * Math.PI + rng() * 0.5;
+      const radiusX = 100 + rng() * 80;
+      const radiusY = 60 + rng() * 50;
+      const scatterX = Math.cos(angle) * radiusX;
+      const scatterY = Math.sin(angle) * radiusY;
       const sign = rng() > 0.5 ? 1 : -1;
       return { gridX, gridY, scatterX, scatterY, sign };
     });
@@ -137,38 +146,33 @@ function PhotoCollage({ images, progress }) {
   const organization = Math.min(progress / 80, 1);
 
   return (
-    <div className="relative w-80 h-56 sm:w-96 sm:h-64 mx-auto mb-6">
+    <div className="relative w-full max-w-2xl h-44 sm:h-56 mx-auto mb-3 overflow-hidden">
       {displayPhotos.map((img, i) => {
         const p = positions[i];
         const angle = (1 - organization) * p.sign * (8 + i * 3);
         const x = p.scatterX * (1 - organization) + p.gridX * organization;
         const y = p.scatterY * (1 - organization) + p.gridY * organization;
+        const opacity = progress > 5 ? 1 : 0;
+        const scale = progress > 5 ? 1 : 0.5;
 
         return (
-          <motion.div
+          <div
             key={img.id}
-            className="absolute w-16 h-16 sm:w-20 sm:h-20 rounded-lg overflow-hidden border-2 border-white/10 shadow-lg"
-            style={{ willChange: 'transform' }}
-            initial={{ opacity: 0, scale: 0.5, rotate: angle, x: p.scatterX, y: p.scatterY }}
-            animate={{
-              opacity: progress > 5 ? 1 : 0,
-              scale: progress > 5 ? 1 : 0.5,
-              rotate: angle * (1 - organization),
-              x,
-              y,
-            }}
-            transition={{
-              duration: 1.2,
-              delay: i * 0.15,
-              ease: 'easeOut',
+            className="absolute w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden border-2 border-white/10 shadow-lg"
+            style={{
+              left: '50%',
+              top: '50%',
+              marginLeft: 'calc(-1 * var(--photo-half))',
+              marginTop: 'calc(-1 * var(--photo-half))',
+              '--photo-half': '2.5rem',
+              opacity,
+              transform: `translateX(${x}px) translateY(${y}px) rotate(${angle * (1 - organization)}deg) scale(${scale})`,
+              transition: 'transform 1.5s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.8s ease',
+              willChange: 'transform, opacity',
             }}
           >
-            <img
-              src={img.previewUrl}
-              alt=""
-              className="w-full h-full object-cover"
-            />
-          </motion.div>
+            <img src={img.previewUrl} alt="" className="w-full h-full object-cover" />
+          </div>
         );
       })}
     </div>
@@ -241,34 +245,49 @@ function PageFanAnimation({ progress, stageIndex }) {
   );
 }
 
-export default function GenerationAnimation({ progress, images, cartoonImages }) {
-  const stageIndex = getCurrentStageIndex(progress);
-  const stage = STAGES[stageIndex];
-  const completedStages = STAGES.filter(s => progress >= s.threshold).length;
+export default function GenerationAnimation({ progress, images, cartoonImages, totalPages, currentPage, generationStage }) {
+  const { t } = useTranslation('wizard');
 
-  // Rotate labels within each stage
+  // Smooth progress interpolation — eases toward target instead of jumping
+  const [displayProgress, setDisplayProgress] = useState(0);
+  useEffect(() => {
+    let raf;
+    const animate = () => {
+      setDisplayProgress(prev => {
+        const diff = progress - prev;
+        if (Math.abs(diff) < 0.3) return progress;
+        return prev + diff * 0.08;
+      });
+      raf = requestAnimationFrame(animate);
+    };
+    raf = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(raf);
+  }, [progress]);
+
+  const stageIndex = getCurrentStageIndex(displayProgress);
+  const stage = STAGES[stageIndex];
+  const completedStages = STAGES.filter(s => displayProgress >= s.threshold).length;
+
+  // Rotate labels within each stage (combined to avoid race condition)
   const [labelIndex, setLabelIndex] = useState(0);
   useEffect(() => {
     setLabelIndex(0);
-  }, [stageIndex]);
-
-  useEffect(() => {
     const interval = setInterval(() => {
-      setLabelIndex(prev => (prev + 1) % stage.labels.length);
+      setLabelIndex(prev => (prev + 1) % stage.labelKeys.length);
     }, 3500);
     return () => clearInterval(interval);
-  }, [stageIndex, stage.labels.length]);
+  }, [stageIndex, stage.labelKeys.length]);
 
-  const currentLabel = stage.labels[labelIndex];
+  const currentLabel = t(stage.labelKeys[labelIndex]);
 
   return (
     <div className="text-center">
-      <PhotoCollage images={images} progress={progress} />
+      <PhotoCollage images={images} progress={displayProgress} />
 
-      <MiniCouple progress={progress} stageIndex={stageIndex} cartoonImages={cartoonImages} />
+      <MiniCouple progress={displayProgress} stageIndex={stageIndex} cartoonImages={cartoonImages} />
 
-      <div className="relative w-20 h-20 mx-auto mb-6">
-        <svg className="w-20 h-20 -rotate-90" viewBox="0 0 80 80">
+      <div className="relative w-16 h-16 mx-auto mb-3">
+        <svg className="w-16 h-16 -rotate-90" viewBox="0 0 80 80">
           <circle cx="40" cy="40" r="34" fill="none" stroke="#1f2937" strokeWidth="3" />
           <motion.circle
             cx="40" cy="40" r="34"
@@ -278,8 +297,8 @@ export default function GenerationAnimation({ progress, images, cartoonImages })
             strokeLinecap="round"
             strokeDasharray={2 * Math.PI * 34}
             initial={{ strokeDashoffset: 2 * Math.PI * 34 }}
-            animate={{ strokeDashoffset: 2 * Math.PI * 34 * (1 - progress / 100) }}
-            transition={{ duration: 0.5 }}
+            animate={{ strokeDashoffset: 2 * Math.PI * 34 * (1 - displayProgress / 100) }}
+            transition={{ duration: 0.3 }}
           />
           <defs>
             <linearGradient id="gen-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -289,11 +308,11 @@ export default function GenerationAnimation({ progress, images, cartoonImages })
           </defs>
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-base font-bold text-gray-200">{Math.round(progress)}%</span>
+          <span className="text-base font-bold text-gray-200">{Math.round(displayProgress)}%</span>
         </div>
       </div>
 
-      <div className="h-14 flex items-center justify-center">
+      <div className="h-10 flex items-center justify-center">
         <AnimatePresence mode="wait">
           <motion.p
             key={currentLabel}
@@ -308,7 +327,17 @@ export default function GenerationAnimation({ progress, images, cartoonImages })
         </AnimatePresence>
       </div>
 
-      <div className="flex justify-center gap-1.5 mt-4">
+      {/* Real-time status from backend SSE */}
+      {totalPages > 0 && (
+        <div className="mt-1">
+          <p className="text-sm text-gray-500">
+            {t('buildingPages', { count: totalPages })}
+          </p>
+        </div>
+      )}
+      {/* generationStage is raw backend English — the i18n rotating labels above are the translated equivalent */}
+
+      <div className="flex justify-center gap-1.5 mt-2">
         {STAGES.map((s, i) => (
           <motion.div
             key={i}
@@ -321,8 +350,8 @@ export default function GenerationAnimation({ progress, images, cartoonImages })
         ))}
       </div>
 
-      <div className="mt-6">
-        <PageFanAnimation progress={progress} stageIndex={stageIndex} />
+      <div className="mt-2">
+        <PageFanAnimation progress={displayProgress} stageIndex={stageIndex} />
       </div>
     </div>
   );

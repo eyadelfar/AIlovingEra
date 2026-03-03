@@ -1,0 +1,155 @@
+{
+  "title": "Admin Panel",
+  "search": "Search...",
+  "noData": "No data available",
+  "confirm": "Confirm",
+  "cancel": "Cancel",
+  "pagination": "Page {{page}} of {{totalPages}} ({{total}} total)",
+
+  "nav": {
+    "dashboard": "Dashboard",
+    "users": "Users",
+    "revenue": "Revenue",
+    "designs": "Designs",
+    "contacts": "Contacts",
+    "system": "System",
+    "auditLog": "Audit Log",
+    "signOut": "Sign Out",
+    "backToSite": "Back to Site"
+  },
+
+  "dashboard": {
+    "title": "Dashboard Overview",
+    "totalUsers": "Total Users",
+    "totalRevenue": "Total Revenue",
+    "totalGenerations": "Total Generations",
+    "activeSubscriptions": "Active Subscriptions",
+    "pendingReviews": "Pending Reviews",
+    "openTickets": "Open Tickets",
+    "revenueChart": "Revenue (30 days)",
+    "userGrowthChart": "User Growth (30 days)",
+    "generationChart": "Generations (30 days)",
+    "templatePopularity": "Template Popularity",
+    "usersToday": "Users Today",
+    "revenueToday": "Revenue Today",
+    "generationsToday": "Generations Today"
+  },
+
+  "users": {
+    "title": "User Management",
+    "name": "Name",
+    "plan": "Plan",
+    "role": "Role",
+    "credits": "Credits",
+    "books": "Books",
+    "joined": "Joined",
+    "view": "View",
+    "ban": "Ban",
+    "unban": "Unban",
+    "banned": "User banned successfully",
+    "unbanned": "User unbanned successfully",
+    "banTitle": "Ban User",
+    "unbanTitle": "Unban User",
+    "unbanMessage": "Are you sure you want to unban {{name}}?",
+    "banReasonPlaceholder": "Enter reason for banning...",
+    "adjustCredits": "Adjust Credits",
+    "adjustCreditsTitle": "Adjust Credits",
+    "adjustCreditsFor": "Adjust credits for {{name}}",
+    "creditsAdjusted": "Credits adjusted successfully",
+    "amountPlaceholder": "Amount (positive to add, negative to deduct)",
+    "reasonPlaceholder": "Reason for adjustment",
+    "changeRole": "Change Role",
+    "changeRoleTitle": "Change User Role",
+    "changeRoleFor": "Change role for {{name}}",
+    "roleChanged": "Role changed successfully",
+    "searchPlaceholder": "Search by name or ID...",
+    "allPlans": "All Plans",
+    "allRoles": "All Roles",
+    "backToList": "Back to Users",
+    "bannedBadge": "Banned"
+  },
+
+  "userDetail": {
+    "purchases": "Purchases",
+    "generations": "Generations",
+    "creditHistory": "Credit History",
+    "template": "Template",
+    "duration": "Duration",
+    "delta": "Delta",
+    "reason": "Reason"
+  },
+
+  "revenue": {
+    "title": "Revenue Management",
+    "planId": "Plan",
+    "type": "Type",
+    "amount": "Amount",
+    "status": "Status",
+    "date": "Date",
+    "refund": "Refund",
+    "refunded": "Purchase refunded successfully",
+    "refundTitle": "Refund Purchase",
+    "refundMessage": "Are you sure you want to refund {{amount}}?",
+    "refundReasonPlaceholder": "Enter reason for refund...",
+    "purchases": "Purchases",
+    "paymentAudit": "Payment Audit Log",
+    "allStatuses": "All Statuses",
+    "eventType": "Event Type",
+    "userId": "User ID"
+  },
+
+  "designs": {
+    "title": "Design Submissions",
+    "name": "Name",
+    "category": "Category",
+    "submittedAt": "Submitted",
+    "review": "Review",
+    "reviewed": "Submission reviewed successfully",
+    "reviewTitle": "Review Submission",
+    "approve": "Approve",
+    "reject": "Reject",
+    "notesPlaceholder": "Admin notes (optional)...",
+    "allStatuses": "All Statuses"
+  },
+
+  "contacts": {
+    "title": "Contact Messages",
+    "name": "Name",
+    "email": "Email",
+    "subject": "Subject",
+    "respond": "Respond",
+    "view": "View",
+    "updated": "Contact updated successfully",
+    "respondTitle": "Respond to Contact",
+    "send": "Save",
+    "responsePlaceholder": "Write your response...",
+    "previousResponse": "Previous Response",
+    "allStatuses": "All Statuses"
+  },
+
+  "system": {
+    "title": "System Health",
+    "status": "Status",
+    "uptime": "Uptime",
+    "sessions": "Active Sessions",
+    "aiModel": "AI Model",
+    "configuration": "Configuration",
+    "aiProvider": "AI Provider",
+    "artModel": "Art Model",
+    "recentErrors": "Recent Generation Errors",
+    "template": "Template",
+    "errorMessage": "Error Message",
+    "noErrors": "No recent errors"
+  },
+
+  "audit": {
+    "title": "Admin Audit Log",
+    "action": "Action",
+    "targetType": "Target Type",
+    "targetId": "Target ID",
+    "admin": "Admin",
+    "ip": "IP Address",
+    "details": "Details",
+    "allActions": "All Actions"
+  }
+}

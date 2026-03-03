@@ -14,6 +14,7 @@ class AbstractPdfGenerator(ABC):
         template_config: dict,
         design_scale: dict | None = None,
         photo_analyses: list[dict] | None = None,
+        overrides: dict | None = None,
     ) -> bytes:
         """Generate PDF bytes from a book draft, photos, and template config."""
         ...

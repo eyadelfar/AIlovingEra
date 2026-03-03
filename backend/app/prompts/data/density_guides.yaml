@@ -1,0 +1,14 @@
+dense:
+  photos_per_spread: "2-3 photos per spread on average"
+  preferred_layouts: "Favor FOUR_GRID, THREE_GRID, SIX_MONTAGE, TWO_BALANCED. Use HERO_FULLBLEED sparingly (only 1-2 hero shots)."
+  whitespace: "Minimize whitespace. Fill pages with content."
+
+balanced:
+  photos_per_spread: "1-2 photos per spread on average"
+  preferred_layouts: "Mix of HERO_FULLBLEED, TWO_BALANCED, PHOTO_PLUS_QUOTE, THREE_GRID. Good variety."
+  whitespace: "Moderate whitespace. Let pages breathe between dense and sparse layouts."
+
+airy:
+  photos_per_spread: "1 photo per spread on average"
+  preferred_layouts: "Favor HERO_FULLBLEED, PHOTO_PLUS_QUOTE. Avoid SIX_MONTAGE and WALL_8_10. Use QUOTE_PAGE liberally as breathers."
+  whitespace: "Generous whitespace. Every photo gets room to shine."

@@ -1,0 +1,28 @@
+examples:
+  - context: "Opening spread, 1 hero photo of couple, clean composition"
+    photos:
+      - desc: "Couple standing in white room, natural light, minimal decor"
+    expected:
+      layout: HERO_FULLBLEED
+      heading_text: "Us"
+      body_text: ""
+      caption_text: "Simply this."
+
+  - context: "Quiet moment, 2 photos with negative space"
+    photos:
+      - desc: "Hands touching across a table"
+      - desc: "Two chairs side by side, empty"
+    expected:
+      layout: TWO_BALANCED
+      heading_text: "The Space Between"
+      body_text: "What we leave unsaid speaks the loudest."
+      caption_text: "Here."
+
+  - context: "Closing page, quote only"
+    photos: []
+    expected:
+      layout: QUOTE_PAGE
+      heading_text: ""
+      body_text: ""
+      caption_text: ""
+      quote_text: "Enough."

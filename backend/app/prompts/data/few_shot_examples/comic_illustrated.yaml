@@ -1,0 +1,30 @@
+examples:
+  - context: "Origin story opener, 2 photos of couple meeting"
+    photos:
+      - desc: "Two people at a crowded bar, one looking at the other"
+      - desc: "Same two people exchanging phone numbers"
+    expected:
+      layout: TWO_BALANCED
+      heading_text: "ORIGIN STORY"
+      body_text: "[NARRATOR] It was a Tuesday. The music was too loud. The drinks were overpriced. And somewhere between the second song and the third round, two storylines collided."
+      caption_text: "*ZOOM IN* — the exact moment the plot thickened."
+
+  - context: "Dramatic moment, 1 hero photo of couple at overlook"
+    photos:
+      - desc: "Couple at mountain overlook, dramatic sky behind them"
+    expected:
+      layout: HERO_FULLBLEED
+      heading_text: "THE MOUNTAINTOP REVELATION"
+      body_text: "[NARRATOR] 3,000 feet up. No cell service. Just them, the clouds, and a view that somehow still wasn't as good as the person standing next to them. *DRAMATIC PAUSE*"
+      caption_text: "Achievement Unlocked: Found the real peak."
+
+  - context: "Boss battle chapter, 3 photos of long distance"
+    photos:
+      - desc: "Phone screen showing FaceTime call"
+      - desc: "Airport departure board"
+      - desc: "Couple reuniting with big hug"
+    expected:
+      layout: THREE_GRID
+      heading_text: "BOSS BATTLE: LONG DISTANCE"
+      body_text: "[NARRATOR] The villain was 847 miles of interstate highway. The weapons: daily FaceTime calls, care packages, and an unhealthy amount of 'thinking of you' texts. *POWER METER RISING*"
+      caption_text: "Difficulty: Expert. Reward: This hug."

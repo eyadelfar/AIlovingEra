@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import useBookStore from '../../stores/bookStore';
 import WizardProgress from './WizardProgress';
@@ -8,6 +9,7 @@ import StepYourStory from './StepYourStory';
 import StepGenerating from './StepGenerating';
 import LiveBookPreview from './LiveBookPreview';
 import { MIN_IMAGES } from '../../lib/constants';
+import ImportBookModal from '../shared/ImportBookModal';
 
 const steps = [StepSetup, StepPhotoUpload, StepYourStory, StepGenerating];
 
@@ -15,6 +17,7 @@ const MIN_PREVIEW_WIDTH = 200;
 const DEFAULT_PREVIEW_WIDTH = 280;
 
 export default function CreatePage() {
+  const { t } = useTranslation('wizard');
   const currentStep = useBookStore(s => s.currentStep);
   const nextStep = useBookStore(s => s.nextStep);
   const prevStep = useBookStore(s => s.prevStep);
@@ -22,6 +25,7 @@ export default function CreatePage() {
   const images = useBookStore(s => s.images);
   const isGenerating = useBookStore(s => s.isGenerating);
 
+  const [showImport, setShowImport] = useState(false);
   const [previewWidth, setPreviewWidth] = useState(DEFAULT_PREVIEW_WIDTH);
   const isDragging = useRef(false);
   const containerRef = useRef(null);
@@ -70,6 +74,15 @@ export default function CreatePage() {
 
   return (
     <div className="w-[92%] sm:w-[85%] lg:w-[80%] mx-auto py-8 sm:py-12">
+      <div className="text-center mb-3">
+        <button
+          onClick={() => setShowImport(true)}
+          className="text-xs text-gray-600 hover:text-gray-400 underline underline-offset-2 transition-colors"
+        >
+          {t('orImportSavedBook')}
+        </button>
+        {showImport && <ImportBookModal onClose={() => setShowImport(false)} />}
+      </div>
       <div className="max-w-3xl mx-auto md:max-w-none">
         <WizardProgress currentStep={currentStep} />
       </div>
@@ -104,7 +117,7 @@ export default function CreatePage() {
                 disabled={currentStep === 0}
                 className="px-6 py-2.5 rounded-lg text-gray-400 hover:text-white border border-gray-700 hover:border-gray-500 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
               >
-                Back
+                {t('back')}
               </button>
               <button
                 onClick={nextStep}
@@ -115,7 +128,7 @@ export default function CreatePage() {
                     : 'bg-gray-800 text-white hover:bg-gray-700 border border-gray-700'
                 }`}
               >
-                {isLastStepBeforeGenerate ? 'Generate My Book' : 'Next'}
+                {isLastStepBeforeGenerate ? t('generateMyBook') : t('next')}
               </button>
             </div>
           )}
@@ -124,13 +137,15 @@ export default function CreatePage() {
         {showPreview && (
           <div
             onPointerDown={handlePointerDown}
-            className="hidden md:flex w-3 flex-shrink-0 cursor-col-resize group items-center justify-center hover:bg-violet-500/10 active:bg-violet-500/20 transition-colors rounded-full mx-1 self-stretch"
-            title="Drag to resize preview"
+            className="hidden md:flex w-5 flex-shrink-0 cursor-col-resize group items-center justify-center bg-violet-500/5 hover:bg-violet-500/15 active:bg-violet-500/25 transition-colors rounded-full mx-1 self-stretch border border-violet-500/10 hover:border-violet-500/30"
+            title={t('dragToResizePreview')}
           >
-            <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              <div className="w-1 h-1 rounded-full bg-gray-500" />
-              <div className="w-1 h-1 rounded-full bg-gray-500" />
-              <div className="w-1 h-1 rounded-full bg-gray-500" />
+            <div className="flex flex-col gap-1 opacity-40 group-hover:opacity-100 transition-opacity">
+              <div className="w-1 h-1 rounded-full bg-violet-400" />
+              <div className="w-1 h-1 rounded-full bg-violet-400" />
+              <div className="w-1 h-1 rounded-full bg-violet-400" />
+              <div className="w-1 h-1 rounded-full bg-violet-400" />
+              <div className="w-1 h-1 rounded-full bg-violet-400" />
             </div>
           </div>
         )}

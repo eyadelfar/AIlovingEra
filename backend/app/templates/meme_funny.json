@@ -3,6 +3,7 @@
   "name": "Funny / Meme",
   "description": "Playful, humorous design with bold colors and fun typography",
   "preview_emoji": "laughing",
+  "primary_vibe": "playful_meme",
   "ai_tone": "humorous-playful",
   "ai_style_prompt": "Enhance with vibrant, saturated colors and playful energy. Keep it bright and fun.",
   "color_palette": {
@@ -36,15 +37,5 @@
       "text_alignment": "center",
       "decorative_border": false
     }
-  },
-  "quote_pool": [
-    "Love is being stupid together.",
-    "I love you more than pizza. And that's saying a lot.",
-    "You're the cheese to my macaroni.",
-    "We go together like copy and paste.",
-    "I love you even when I'm hungry.",
-    "You're my favorite notification.",
-    "Relationship status: Making everyone jealous since day one.",
-    "I like you even when I'm hangry. That's true love."
-  ]
+  }
 }

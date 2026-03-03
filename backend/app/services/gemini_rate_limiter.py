@@ -1,7 +1,8 @@
 import asyncio
-import logging
 
-logger = logging.getLogger(__name__)
+import structlog
+
+logger = structlog.get_logger()
 
 
 def is_rate_limit_error(exc: Exception) -> bool:
@@ -30,12 +31,14 @@ async def with_rate_limit_retry(coro_factory, max_retries=1, delay=5):
                 raise
             if attempt < max_retries:
                 logger.warning(
-                    "Rate limited by Gemini API (attempt %d/%d), retrying after %ds...",
-                    attempt + 1, 1 + max_retries, delay,
+                    "gemini_rate_limited",
+                    attempt=attempt + 1,
+                    max_attempts=1 + max_retries,
+                    retry_delay_s=delay,
                 )
                 await asyncio.sleep(delay)
             else:
-                logger.error("Gemini API rate limit retry exhausted: %s", exc)
+                logger.error("gemini_rate_limit_exhausted", exc_info=True)
                 raise ValueError(
                     "AI rate limit reached. Please wait a moment and try again."
                 ) from exc

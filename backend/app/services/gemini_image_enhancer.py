@@ -1,5 +1,6 @@
-import logging
+import time
 
+import structlog
 from google import genai
 from google.genai import types
 
@@ -7,7 +8,7 @@ from app.constants import IMAGE_LOOK_PROMPTS
 from app.interfaces.image_enhancer import AbstractImageEnhancer
 from app.services.gemini_rate_limiter import with_rate_limit_retry
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 
 class GeminiImageEnhancer(AbstractImageEnhancer):
@@ -45,6 +46,7 @@ class GeminiImageEnhancer(AbstractImageEnhancer):
             prompt,
         ]
 
+        t0 = time.perf_counter()
         try:
             response = await with_rate_limit_retry(
                 lambda: self._client.aio.models.generate_content(
@@ -58,8 +60,11 @@ class GeminiImageEnhancer(AbstractImageEnhancer):
         except ValueError:
             raise
         except Exception as exc:
-            logger.error("Gemini enhance_photo failed: %s", exc)
+            logger.error("gemini_enhance_photo_failed", exc_info=True)
             raise ValueError(f"AI image enhancement error: {exc}") from exc
+
+        duration_ms = round((time.perf_counter() - t0) * 1000, 1)
+        logger.info("gemini_enhance_photo_complete", duration_ms=duration_ms)
 
         if not response.parts:
             raise ValueError("Gemini returned no content — the response may have been blocked by safety filters.")
@@ -71,6 +76,7 @@ class GeminiImageEnhancer(AbstractImageEnhancer):
         raise ValueError("Gemini did not return an enhanced image")
 
     async def generate_image_from_text(self, prompt: str) -> bytes:
+        t0 = time.perf_counter()
         try:
             response = await with_rate_limit_retry(
                 lambda: self._client.aio.models.generate_content(
@@ -84,8 +90,11 @@ class GeminiImageEnhancer(AbstractImageEnhancer):
         except ValueError:
             raise
         except Exception as exc:
-            logger.error("Gemini generate_image_from_text failed: %s", exc)
+            logger.error("gemini_generate_image_failed", exc_info=True)
             raise ValueError(f"AI image generation error: {exc}") from exc
+
+        duration_ms = round((time.perf_counter() - t0) * 1000, 1)
+        logger.info("gemini_generate_image_complete", duration_ms=duration_ms)
 
         if not response.parts:
             raise ValueError("Gemini returned no content — the response may have been blocked by safety filters.")
@@ -116,6 +125,7 @@ class GeminiImageEnhancer(AbstractImageEnhancer):
             prompt,
         ]
 
+        t0 = time.perf_counter()
         try:
             response = await with_rate_limit_retry(
                 lambda: self._client.aio.models.generate_content(
@@ -129,8 +139,11 @@ class GeminiImageEnhancer(AbstractImageEnhancer):
         except ValueError:
             raise
         except Exception as exc:
-            logger.error("Gemini generate_cartoon failed: %s", exc)
+            logger.error("gemini_generate_cartoon_failed", exc_info=True)
             raise ValueError(f"AI cartoon generation error: {exc}") from exc
+
+        duration_ms = round((time.perf_counter() - t0) * 1000, 1)
+        logger.info("gemini_generate_cartoon_complete", duration_ms=duration_ms)
 
         if not response.parts:
             raise ValueError("Gemini returned no content for cartoon generation.")
@@ -161,6 +174,7 @@ class GeminiImageEnhancer(AbstractImageEnhancer):
             prompt,
         ]
 
+        t0 = time.perf_counter()
         try:
             response = await with_rate_limit_retry(
                 lambda: self._client.aio.models.generate_content(
@@ -174,8 +188,11 @@ class GeminiImageEnhancer(AbstractImageEnhancer):
         except ValueError:
             raise
         except Exception as exc:
-            logger.error("Gemini blend_with_template failed: %s", exc)
+            logger.error("gemini_blend_with_template_failed", exc_info=True)
             raise ValueError(f"AI photo blending error: {exc}") from exc
+
+        duration_ms = round((time.perf_counter() - t0) * 1000, 1)
+        logger.info("gemini_blend_with_template_complete", duration_ms=duration_ms)
 
         if not response.parts:
             raise ValueError("Gemini returned no content for photo blending.")

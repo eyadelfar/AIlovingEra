@@ -1,0 +1,52 @@
+{
+  "designMarketplace": "Design Marketplace",
+  "marketplaceSubtitle": "Browse premium themes, covers, and layout packs to make your memory book unique.",
+
+  "categoryAll": "All",
+  "categoryThemes": "Themes",
+  "categoryCovers": "Covers",
+  "categoryLayoutPacks": "Layout Packs",
+
+  "searchDesigns": "Search designs...",
+  "freeOnly": "Free only",
+
+  "free": "Free",
+  "featured": "Featured",
+
+  "noDesignsFound": "No designs found. Try adjusting your filters.",
+
+  "previous": "Previous",
+  "next": "Next",
+  "pageOf": "Page {{current}} of {{total}}",
+
+  "applyToBook": "Apply to Book",
+  "purchasing": "Purchasing...",
+  "purchaseWithPrice": "Purchase — ${{price}}",
+  "purchaseFailed": "Purchase failed",
+
+  "submitDesign": "Submit Design",
+  "designName": "Design Name",
+  "designDescription": "Design Description",
+  "designCategory": "Category",
+  "designSubcategory": "Subcategory",
+  "designTags": "Tags",
+  "designPrice": "Price",
+  "designThumbnail": "Thumbnail",
+  "designPreviewImage": "Preview Image",
+  "designConfig": "Design Config",
+  "submitForReview": "Submit for Review",
+  "submitting": "Submitting...",
+  "designSubmitted": "Design submitted for review!",
+  "designSubmitError": "Failed to submit design",
+
+  "designerName": "Designer Name",
+  "designerBio": "Designer Bio",
+  "designerPortfolio": "Portfolio URL",
+
+  "sortByNewest": "Newest",
+  "sortByPopular": "Popular",
+  "sortByPrice": "Price",
+
+  "downloads": "{{count}} downloads",
+  "rating": "{{score}} rating"
+}

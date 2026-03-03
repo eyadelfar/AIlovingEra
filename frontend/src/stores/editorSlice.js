@@ -1,10 +1,78 @@
 import { generateAIImage, enhanceImage, regenerateText } from '../api/bookApi';
+import { MAX_PHOTOS, getNextLayoutUp } from '../features/viewer/layouts/index';
+import { trackEvent } from '../lib/eventTracker';
 
-const MAX_HISTORY = 50;
+const MAX_HISTORY = 30;
+const HISTORY_DEBOUNCE_MS = 100;
 const MIXED_LAYOUTS = new Set(['PHOTO_PLUS_QUOTE', 'COLLAGE_PLUS_LETTER']);
+const OVERRIDE_MAP_NAMES = [
+  'cropOverrides', 'filterOverrides', 'positionOffsets',
+  'blendOverrides', 'textStyleOverrides', 'textPositionOffsets', 'sizeOverrides',
+];
+let _historyDebounceTimer = null;
+let _pendingSnapshot = null;
+
+/**
+ * Re-key all override maps when chapter/spread/slot indices change.
+ * @param {Object} state - Current store state
+ * @param {Function} keyTransform - (oldKey) => newKey | null (null to delete)
+ * @returns {Object} - Updated override map entries for set()
+ */
+function remapOverrideKeys(state, keyTransform) {
+  const result = {};
+  for (const mapName of OVERRIDE_MAP_NAMES) {
+    const oldMap = state[mapName];
+    if (!oldMap || Object.keys(oldMap).length === 0) continue;
+    const newMap = {};
+    for (const [oldKey, value] of Object.entries(oldMap)) {
+      const newKey = keyTransform(oldKey);
+      if (newKey != null) {
+        newMap[newKey] = value;
+      }
+    }
+    result[mapName] = newMap;
+  }
+  return result;
+}
+
+/** Capture all visual state into a single snapshot for undo/redo. */
+function captureVisualState(s) {
+  const draft = structuredClone(s.editorDraft);
+  // Exclude derived pages[] — it's rebuilt from chapters via rebuildPages()
+  if (draft) delete draft.pages;
+  return {
+    editorDraft: draft,
+    cropOverrides: { ...s.cropOverrides },
+    filterOverrides: { ...s.filterOverrides },
+    positionOffsets: { ...s.positionOffsets },
+    blendOverrides: { ...s.blendOverrides },
+    textStyleOverrides: structuredClone(s.textStyleOverrides),
+    textPositionOffsets: { ...s.textPositionOffsets },
+    sizeOverrides: { ...s.sizeOverrides },
+    customTheme: { ...s.customTheme },
+    selectedTemplate: s.selectedTemplate,
+  };
+}
+
+/** Restore all visual state fields from a snapshot. */
+function restoreVisualState(snapshot) {
+  snapshot.editorDraft.pages = rebuildPages(snapshot.editorDraft);
+  return {
+    editorDraft: snapshot.editorDraft,
+    cropOverrides: snapshot.cropOverrides,
+    filterOverrides: snapshot.filterOverrides,
+    positionOffsets: snapshot.positionOffsets,
+    blendOverrides: snapshot.blendOverrides,
+    textStyleOverrides: snapshot.textStyleOverrides,
+    textPositionOffsets: snapshot.textPositionOffsets,
+    sizeOverrides: snapshot.sizeOverrides,
+    customTheme: snapshot.customTheme,
+    selectedTemplate: snapshot.selectedTemplate,
+  };
+}
 
 /** Rebuild flat pages array from chapters (lightweight sync, no bookDraft update). */
-function rebuildPages(draft) {
+export function rebuildPages(draft) {
   if (!draft) return [];
   const pages = [];
   let pageNum = 1;
@@ -16,7 +84,7 @@ function rebuildPages(draft) {
   });
   pages.push({
     page_number: pageNum++, page_type: 'dedication', layout_type: 'DEDICATION',
-    photo_indices: [], heading_text: 'For Us', body_text: draft.dedication || '',
+    photo_indices: [], heading_text: draft.dedication_heading || 'For Us', body_text: draft.dedication || '',
     caption_text: '', quote_text: '',
   });
   for (const ch of (draft.chapters || [])) {
@@ -44,7 +112,7 @@ function rebuildPages(draft) {
   }
   pages.push({
     page_number: pageNum, page_type: 'back_cover', layout_type: 'QUOTE_PAGE',
-    photo_indices: [], heading_text: 'The End',
+    photo_indices: [], heading_text: draft.closing_heading || 'The End',
     body_text: draft.closing_page?.text || "Here's to many more memories together.",
     caption_text: '', quote_text: '',
   });
@@ -52,7 +120,6 @@ function rebuildPages(draft) {
 }
 
 export const createEditorSlice = (set, get) => ({
-  // Editor state
   useOriginalPhotos: false,
   editorDraft: null,
   editorHistory: [],
@@ -63,13 +130,32 @@ export const createEditorSlice = (set, get) => ({
   editorDirty: false,
   cropOverrides: {},
   filterOverrides: {},
+  positionOffsets: {},
+  blendOverrides: {},
+  textStyleOverrides: {},
+  textPositionOffsets: {},
+  sizeOverrides: {},
 
-  // Editor actions
+  /** Compute overrides on-demand for PDF — no need to store a duplicate snapshot. */
+  getCommittedOverrides: () => {
+    const s = get();
+    return {
+      cropOverrides: { ...s.cropOverrides },
+      filterOverrides: { ...s.filterOverrides },
+      positionOffsets: { ...s.positionOffsets },
+      blendOverrides: { ...s.blendOverrides },
+      textStyleOverrides: structuredClone(s.textStyleOverrides),
+      textPositionOffsets: { ...s.textPositionOffsets },
+      sizeOverrides: { ...s.sizeOverrides },
+    };
+  },
+
   initEditor: () => {
     const s = get();
     if (!s.bookDraft) return;
-    const draft = JSON.parse(JSON.stringify(s.bookDraft));
+    const draft = structuredClone(s.bookDraft);
     draft.pages = rebuildPages(draft);
+    // Do NOT reset override maps — keep them intact across edit sessions
     set({
       editorDraft: draft,
       editorHistory: [],
@@ -83,22 +169,31 @@ export const createEditorSlice = (set, get) => ({
   pushHistory: () => {
     const s = get();
     if (!s.editorDraft) return;
-    const snapshot = JSON.parse(JSON.stringify(s.editorDraft));
-    set((s) => ({
-      editorHistory: [...s.editorHistory.slice(-MAX_HISTORY + 1), snapshot],
-      editorFuture: [],
-      editorDirty: true,
-    }));
+    // Capture immediately but debounce the actual history commit
+    if (!_pendingSnapshot) {
+      _pendingSnapshot = captureVisualState(s);
+    }
+    clearTimeout(_historyDebounceTimer);
+    _historyDebounceTimer = setTimeout(() => {
+      const snap = _pendingSnapshot;
+      _pendingSnapshot = null;
+      if (!snap) return;
+      set((s) => ({
+        editorHistory: [...s.editorHistory.slice(-MAX_HISTORY + 1), snap],
+        editorFuture: [],
+        editorDirty: true,
+      }));
+    }, HISTORY_DEBOUNCE_MS);
   },
 
   undo: () => {
     const s = get();
     if (s.editorHistory.length === 0) return;
-    const prev = s.editorHistory[s.editorHistory.length - 1];
-    prev.pages = rebuildPages(prev);
+    const prevSnapshot = s.editorHistory[s.editorHistory.length - 1];
+    const currentSnapshot = captureVisualState(s);
     set({
-      editorFuture: [JSON.parse(JSON.stringify(s.editorDraft)), ...s.editorFuture],
-      editorDraft: prev,
+      editorFuture: [currentSnapshot, ...s.editorFuture],
+      ...restoreVisualState(prevSnapshot),
       editorHistory: s.editorHistory.slice(0, -1),
     });
   },
@@ -106,11 +201,11 @@ export const createEditorSlice = (set, get) => ({
   redo: () => {
     const s = get();
     if (s.editorFuture.length === 0) return;
-    const next = s.editorFuture[0];
-    next.pages = rebuildPages(next);
+    const nextSnapshot = s.editorFuture[0];
+    const currentSnapshot = captureVisualState(s);
     set({
-      editorHistory: [...s.editorHistory, JSON.parse(JSON.stringify(s.editorDraft))],
-      editorDraft: next,
+      editorHistory: [...s.editorHistory, currentSnapshot],
+      ...restoreVisualState(nextSnapshot),
       editorFuture: s.editorFuture.slice(1),
     });
   },
@@ -118,7 +213,7 @@ export const createEditorSlice = (set, get) => ({
   updateSpreadField: (chapterIdx, spreadIdx, field, value) => {
     get().pushHistory();
     set((s) => {
-      const draft = JSON.parse(JSON.stringify(s.editorDraft));
+      const draft = structuredClone(s.editorDraft);
       const ch = draft.chapters?.[chapterIdx];
       if (ch?.spreads?.[spreadIdx]) {
         ch.spreads[spreadIdx][field] = value;
@@ -126,12 +221,18 @@ export const createEditorSlice = (set, get) => ({
       draft.pages = rebuildPages(draft);
       return { editorDraft: draft };
     });
+    if (['heading_text', 'body_text', 'caption_text', 'quote_text'].includes(field)) {
+      trackEvent('text_edited', 'editor');
+    }
+    if (field === 'layout_type') {
+      trackEvent('layout_changed', 'editor');
+    }
   },
 
   updateChapterField: (chapterIdx, field, value) => {
     get().pushHistory();
     set((s) => {
-      const draft = JSON.parse(JSON.stringify(s.editorDraft));
+      const draft = structuredClone(s.editorDraft);
       if (draft.chapters?.[chapterIdx]) {
         draft.chapters[chapterIdx][field] = value;
       }
@@ -143,7 +244,7 @@ export const createEditorSlice = (set, get) => ({
   updateBookField: (field, value) => {
     get().pushHistory();
     set((s) => {
-      const draft = JSON.parse(JSON.stringify(s.editorDraft));
+      const draft = structuredClone(s.editorDraft);
       draft[field] = value;
       draft.pages = rebuildPages(draft);
       return { editorDraft: draft };
@@ -153,34 +254,80 @@ export const createEditorSlice = (set, get) => ({
   reorderSpread: (chapterIdx, fromIdx, toIdx) => {
     get().pushHistory();
     set((s) => {
-      const draft = JSON.parse(JSON.stringify(s.editorDraft));
+      const draft = structuredClone(s.editorDraft);
       const ch = draft.chapters?.[chapterIdx];
       if (!ch?.spreads) return {};
       const [moved] = ch.spreads.splice(fromIdx, 1);
       ch.spreads.splice(toIdx, 0, moved);
       ch.spreads.forEach((sp, i) => { sp.spread_index = i; });
       draft.pages = rebuildPages(draft);
-      return { editorDraft: draft };
+
+      // Build index mapping for the affected range
+      const min = Math.min(fromIdx, toIdx);
+      const max = Math.max(fromIdx, toIdx);
+      const indexMap = {};
+      for (let i = min; i <= max; i++) {
+        if (i === fromIdx) {
+          indexMap[i] = toIdx;
+        } else if (fromIdx < toIdx) {
+          indexMap[i] = i - 1;
+        } else {
+          indexMap[i] = i + 1;
+        }
+      }
+
+      const remapped = remapOverrideKeys(s, (key) => {
+        const parts = key.split('-');
+        if (parts.length < 3) return key;
+        const ci = parseInt(parts[0]);
+        const si = parseInt(parts[1]);
+        if (ci !== chapterIdx || indexMap[si] == null) return key;
+        return `${ci}-${indexMap[si]}-${parts.slice(2).join('-')}`;
+      });
+
+      return { editorDraft: draft, ...remapped };
     });
   },
 
   reorderChapter: (fromIdx, toIdx) => {
     get().pushHistory();
     set((s) => {
-      const draft = JSON.parse(JSON.stringify(s.editorDraft));
+      const draft = structuredClone(s.editorDraft);
       if (!draft.chapters) return {};
       const [moved] = draft.chapters.splice(fromIdx, 1);
       draft.chapters.splice(toIdx, 0, moved);
       draft.chapters.forEach((ch, i) => { ch.chapter_index = i; });
       draft.pages = rebuildPages(draft);
-      return { editorDraft: draft };
+
+      const min = Math.min(fromIdx, toIdx);
+      const max = Math.max(fromIdx, toIdx);
+      const indexMap = {};
+      for (let i = min; i <= max; i++) {
+        if (i === fromIdx) {
+          indexMap[i] = toIdx;
+        } else if (fromIdx < toIdx) {
+          indexMap[i] = i - 1;
+        } else {
+          indexMap[i] = i + 1;
+        }
+      }
+
+      const remapped = remapOverrideKeys(s, (key) => {
+        const parts = key.split('-');
+        if (parts.length < 3) return key;
+        const ci = parseInt(parts[0]);
+        if (indexMap[ci] == null) return key;
+        return `${indexMap[ci]}-${parts.slice(1).join('-')}`;
+      });
+
+      return { editorDraft: draft, ...remapped };
     });
   },
 
   swapPhoto: (chapterIdx, spreadIdx, slotIdx, newImageId) => {
     get().pushHistory();
     set((s) => {
-      const draft = JSON.parse(JSON.stringify(s.editorDraft));
+      const draft = structuredClone(s.editorDraft);
       const ch = draft.chapters?.[chapterIdx];
       if (ch?.spreads?.[spreadIdx]?.photo_indices) {
         ch.spreads[spreadIdx].photo_indices[slotIdx] = newImageId;
@@ -193,21 +340,35 @@ export const createEditorSlice = (set, get) => ({
   removeSpread: (chapterIdx, spreadIdx) => {
     get().pushHistory();
     set((s) => {
-      const draft = JSON.parse(JSON.stringify(s.editorDraft));
+      const draft = structuredClone(s.editorDraft);
       const ch = draft.chapters?.[chapterIdx];
       if (ch?.spreads) {
         ch.spreads.splice(spreadIdx, 1);
         ch.spreads.forEach((sp, i) => { sp.spread_index = i; });
       }
       draft.pages = rebuildPages(draft);
-      return { editorDraft: draft };
+
+      // Re-key: delete removed spread's keys, shift higher spreads down
+      const prefix = `${chapterIdx}-`;
+      const remapped = remapOverrideKeys(s, (key) => {
+        const parts = key.split('-');
+        if (parts.length < 3) return key;
+        const ci = parseInt(parts[0]);
+        const si = parseInt(parts[1]);
+        if (ci !== chapterIdx) return key;
+        if (si === spreadIdx) return null;
+        if (si > spreadIdx) return `${ci}-${si - 1}-${parts.slice(2).join('-')}`;
+        return key;
+      });
+
+      return { editorDraft: draft, ...remapped };
     });
   },
 
   addBlankSpread: (chapterIdx, position) => {
     get().pushHistory();
     set((s) => {
-      const draft = JSON.parse(JSON.stringify(s.editorDraft));
+      const draft = structuredClone(s.editorDraft);
       const ch = draft.chapters?.[chapterIdx];
       if (!ch) return {};
       const newSpread = {
@@ -228,28 +389,64 @@ export const createEditorSlice = (set, get) => ({
       ch.spreads.splice(position, 0, newSpread);
       ch.spreads.forEach((sp, i) => { sp.spread_index = i; });
       draft.pages = rebuildPages(draft);
-      return { editorDraft: draft };
+
+      // Shift override keys at or above the insertion point up
+      const remapped = remapOverrideKeys(s, (key) => {
+        const parts = key.split('-');
+        if (parts.length < 3) return key;
+        const ci = parseInt(parts[0]);
+        const si = parseInt(parts[1]);
+        if (ci !== chapterIdx || si < position) return key;
+        return `${ci}-${si + 1}-${parts.slice(2).join('-')}`;
+      });
+
+      return { editorDraft: draft, ...remapped };
     });
   },
 
   duplicateSpread: (chapterIdx, spreadIdx) => {
     get().pushHistory();
     set((s) => {
-      const draft = JSON.parse(JSON.stringify(s.editorDraft));
+      const draft = structuredClone(s.editorDraft);
       const ch = draft.chapters?.[chapterIdx];
       if (!ch?.spreads?.[spreadIdx]) return {};
-      const clone = JSON.parse(JSON.stringify(ch.spreads[spreadIdx]));
+      const clone = structuredClone(ch.spreads[spreadIdx]);
       ch.spreads.splice(spreadIdx + 1, 0, clone);
       ch.spreads.forEach((sp, i) => { sp.spread_index = i; });
       draft.pages = rebuildPages(draft);
-      return { editorDraft: draft };
+
+      // Shift override keys above the duplicated spread up; clone overrides for the duplicate
+      const prefix = `${chapterIdx}-`;
+      const remapped = remapOverrideKeys(s, (key) => {
+        const parts = key.split('-');
+        if (parts.length < 3) return key;
+        const ci = parseInt(parts[0]);
+        const si = parseInt(parts[1]);
+        if (ci !== chapterIdx || si <= spreadIdx) return key;
+        return `${ci}-${si + 1}-${parts.slice(2).join('-')}`;
+      });
+
+      // Copy overrides from original spread to the duplicate
+      for (const mapName of OVERRIDE_MAP_NAMES) {
+        const map = remapped[mapName] || { ...s[mapName] };
+        const srcPrefix = `${chapterIdx}-${spreadIdx}-`;
+        const dstPrefix = `${chapterIdx}-${spreadIdx + 1}-`;
+        for (const [key, value] of Object.entries(s[mapName] || {})) {
+          if (key.startsWith(srcPrefix)) {
+            map[dstPrefix + key.slice(srcPrefix.length)] = structuredClone(value);
+          }
+        }
+        remapped[mapName] = map;
+      }
+
+      return { editorDraft: draft, ...remapped };
     });
   },
 
   swapPhotoBetweenSpreads: (fromChIdx, fromSpIdx, fromSlotIdx, toChIdx, toSpIdx, toSlotIdx) => {
     get().pushHistory();
     set((s) => {
-      const draft = JSON.parse(JSON.stringify(s.editorDraft));
+      const draft = structuredClone(s.editorDraft);
       const fromSpread = draft.chapters?.[fromChIdx]?.spreads?.[fromSpIdx];
       const toSpread = draft.chapters?.[toChIdx]?.spreads?.[toSpIdx];
       if (!fromSpread?.photo_indices || !toSpread?.photo_indices) return {};
@@ -264,7 +461,7 @@ export const createEditorSlice = (set, get) => ({
   swapTextBetweenSpreads: (fromChIdx, fromSpIdx, fromField, toChIdx, toSpIdx, toField) => {
     get().pushHistory();
     set((s) => {
-      const draft = JSON.parse(JSON.stringify(s.editorDraft));
+      const draft = structuredClone(s.editorDraft);
       const fromSpread = draft.chapters?.[fromChIdx]?.spreads?.[fromSpIdx];
       const toSpread = draft.chapters?.[toChIdx]?.spreads?.[toSpIdx];
       if (!fromSpread || !toSpread) return {};
@@ -278,10 +475,10 @@ export const createEditorSlice = (set, get) => ({
 
   setUseOriginalPhotos: (val) => set({ useOriginalPhotos: val }),
 
-  // Crop & filter override actions
   setCropOverride: (key, cropData) => {
     get().pushHistory();
     set((s) => ({ cropOverrides: { ...s.cropOverrides, [key]: cropData } }));
+    trackEvent('photo_cropped', 'editor');
   },
   clearCropOverride: (key) => {
     get().pushHistory();
@@ -304,6 +501,152 @@ export const createEditorSlice = (set, get) => ({
     });
   },
 
+  setPositionOffset: (key, offset) => {
+    get().pushHistory();
+    set((s) => ({ positionOffsets: { ...s.positionOffsets, [key]: offset } }));
+  },
+  clearPositionOffset: (key) => {
+    get().pushHistory();
+    set((s) => {
+      const next = { ...s.positionOffsets };
+      delete next[key];
+      return { positionOffsets: next };
+    });
+  },
+
+  setBlendOverride: (key, val) => {
+    get().pushHistory();
+    set((s) => ({ blendOverrides: { ...s.blendOverrides, [key]: val } }));
+  },
+
+  setTextStyleOverride: (key, styleObj) => {
+    get().pushHistory();
+    set((s) => ({ textStyleOverrides: { ...s.textStyleOverrides, [key]: { ...(s.textStyleOverrides[key] || {}), ...styleObj } } }));
+  },
+  clearTextStyleOverride: (key) => {
+    get().pushHistory();
+    set((s) => {
+      const next = { ...s.textStyleOverrides };
+      delete next[key];
+      return { textStyleOverrides: next };
+    });
+  },
+
+  setTextPositionOffset: (key, offset) => {
+    get().pushHistory();
+    set((s) => ({ textPositionOffsets: { ...s.textPositionOffsets, [key]: offset } }));
+  },
+  clearTextPositionOffset: (key) => {
+    get().pushHistory();
+    set((s) => {
+      const next = { ...s.textPositionOffsets };
+      delete next[key];
+      return { textPositionOffsets: next };
+    });
+  },
+
+  // ── Size overrides (photo resize persistence) ──
+  setSizeOverride: (key, size) => {
+    get().pushHistory();
+    set((s) => ({ sizeOverrides: { ...s.sizeOverrides, [key]: size } }));
+  },
+  clearSizeOverride: (key) => {
+    get().pushHistory();
+    set((s) => {
+      const next = { ...s.sizeOverrides };
+      delete next[key];
+      return { sizeOverrides: next };
+    });
+  },
+
+  // ── Template/theme with history (undoable) ──
+  setTemplateWithHistory: (slug) => {
+    get().pushHistory();
+    set({ selectedTemplate: slug, editorDirty: true });
+    trackEvent('layout_changed', 'editor');
+  },
+  setCustomThemeWithHistory: (updates) => {
+    get().pushHistory();
+    set((s) => ({ customTheme: { ...s.customTheme, ...updates }, editorDirty: true }));
+  },
+
+  // ── Add/remove/move photos in editor ──
+  addImageToBook: (file) => {
+    const previewUrl = URL.createObjectURL(file);
+    set((s) => ({
+      images: [...s.images, { id: `user-${Date.now()}`, file, previewUrl }],
+    }));
+    return get().images.length - 1; // return new photo index
+  },
+
+  addPhotoToSpread: (chapterIdx, spreadIdx, photoIdx) => {
+    get().pushHistory();
+    set((s) => {
+      const draft = structuredClone(s.editorDraft);
+      const spread = draft.chapters?.[chapterIdx]?.spreads?.[spreadIdx];
+      if (!spread) return {};
+      spread.photo_indices = [...(spread.photo_indices || []), photoIdx];
+      // Auto-upgrade layout if needed
+      const count = spread.photo_indices.length;
+      const maxForLayout = MAX_PHOTOS[spread.layout_type] || 1;
+      if (count > maxForLayout) {
+        const next = getNextLayoutUp(spread.layout_type);
+        if (next) spread.layout_type = next;
+      }
+      draft.pages = rebuildPages(draft);
+      return { editorDraft: draft };
+    });
+  },
+
+  removePhotoFromSpread: (chapterIdx, spreadIdx, slotIdx) => {
+    get().pushHistory();
+    set((s) => {
+      const draft = structuredClone(s.editorDraft);
+      const spread = draft.chapters?.[chapterIdx]?.spreads?.[spreadIdx];
+      if (!spread?.photo_indices) return {};
+      spread.photo_indices.splice(slotIdx, 1);
+      draft.pages = rebuildPages(draft);
+
+      // Shift override keys: delete removed slot, decrement slots above it
+      const prefix = `${chapterIdx}-${spreadIdx}-`;
+      const remapped = remapOverrideKeys(s, (key) => {
+        if (!key.startsWith(prefix)) return key;
+        const suffix = key.slice(prefix.length);
+        const slotNum = parseInt(suffix);
+        if (isNaN(slotNum)) return key; // Text keys like 'heading_text'
+        if (slotNum === slotIdx) return null; // Remove overrides for deleted slot
+        if (slotNum > slotIdx) return `${prefix}${slotNum - 1}`; // Shift down
+        return key;
+      });
+
+      return { editorDraft: draft, ...remapped };
+    });
+  },
+
+  movePhotoBetweenPages: (fromChIdx, fromSpIdx, fromSlot, toChIdx, toSpIdx, toSlot) => {
+    get().pushHistory();
+    set((s) => {
+      const draft = structuredClone(s.editorDraft);
+      const fromSpread = draft.chapters?.[fromChIdx]?.spreads?.[fromSpIdx];
+      const toSpread = draft.chapters?.[toChIdx]?.spreads?.[toSpIdx];
+      if (!fromSpread?.photo_indices || !toSpread) return {};
+      const [movedPhoto] = fromSpread.photo_indices.splice(fromSlot, 1);
+      if (movedPhoto == null) return {};
+      if (!toSpread.photo_indices) toSpread.photo_indices = [];
+      const insertAt = toSlot != null ? toSlot : toSpread.photo_indices.length;
+      toSpread.photo_indices.splice(insertAt, 0, movedPhoto);
+      // Auto-upgrade target layout if needed
+      const count = toSpread.photo_indices.length;
+      const maxForLayout = MAX_PHOTOS[toSpread.layout_type] || 1;
+      if (count > maxForLayout) {
+        const next = getNextLayoutUp(toSpread.layout_type);
+        if (next) toSpread.layout_type = next;
+      }
+      draft.pages = rebuildPages(draft);
+      return { editorDraft: draft };
+    });
+  },
+
   getCropStyle: (photoIndex) => {
     const analyses = get().photoAnalyses;
     if (!analyses || !analyses.length) return {};
@@ -322,12 +665,11 @@ export const createEditorSlice = (set, get) => ({
   commitEditorDraft: () => {
     const s = get();
     if (!s.editorDraft) return;
-    const committed = JSON.parse(JSON.stringify(s.editorDraft));
+    const committed = structuredClone(s.editorDraft);
     committed.pages = rebuildPages(committed);
     set({ bookDraft: committed, editorDirty: false });
   },
 
-  // AI editor features
   generateAIImageAction: async (prompt, imageLook) => {
     return generateAIImage({ prompt, styleHint: '', imageLook: imageLook || get().imageLook });
   },

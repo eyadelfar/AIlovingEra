@@ -22,6 +22,27 @@ class AbstractPromptBuilder(ABC):
     ) -> str: ...
 
     @abstractmethod
+    def build_planning_prompt(
+        self,
+        request: BookGenerationRequest,
+        photo_analyses: list[dict],
+        clusters: list[dict] | None = None,
+        quality_scores: list[dict] | None = None,
+    ) -> str:
+        """Stage C: Generate book structure plan (no text, just skeleton)."""
+        ...
+
+    @abstractmethod
+    def build_writing_prompt(
+        self,
+        request: BookGenerationRequest,
+        plan: dict,
+        photo_analyses: list[dict],
+    ) -> str:
+        """Stage D: Generate all narrative text for a planned structure."""
+        ...
+
+    @abstractmethod
     def build_questions_prompt(
         self,
         photo_analyses: list[dict],

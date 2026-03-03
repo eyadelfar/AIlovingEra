@@ -26,3 +26,6 @@ class AbstractResponseParser(ABC):
 
     @abstractmethod
     def extract_clusters_from_analyses(self, analyses: list[dict]) -> list[dict]: ...
+
+    @abstractmethod
+    def parse_plan(self, raw_text: str) -> dict: ...

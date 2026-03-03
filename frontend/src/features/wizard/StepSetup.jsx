@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import {
   Heart, CloudRain, Laugh, Zap, Film, Gem,
-  ChevronDown, ChevronRight,
+  ChevronDown, ChevronRight, Store,
 } from 'lucide-react';
-import { fetchTemplates } from '../../api/templateApi';
+import { fetchTemplates } from '../../api/bookApi';
 import useBookStore from '../../stores/bookStore';
 import {
   STRUCTURE_TEMPLATES, OCCASIONS, VIBES,
@@ -37,7 +39,7 @@ function SectionHeader({ title, subtitle, isOpen, onToggle }) {
       onClick={onToggle}
       className="w-full flex items-center justify-between py-3 group"
     >
-      <div className="text-left">
+      <div className="text-start">
         <h3 className="text-lg font-semibold text-gray-100 group-hover:text-white transition-colors">
           {title}
         </h3>
@@ -57,7 +59,6 @@ function PageSizeIcon({ type, isSelected }) {
   const fill = isSelected ? 'rgba(251,113,133,0.08)' : 'rgba(107,114,128,0.06)';
 
   if (type === 'a4') {
-    // Tall rectangle: A4 proportions 210x297 => ~0.707 ratio
     return (
       <svg viewBox="0 0 40 56" className="w-8 h-11 mx-auto">
         <rect x="2" y="2" width="36" height="52" rx="2" fill={fill} stroke={stroke} strokeWidth="2" />
@@ -68,7 +69,6 @@ function PageSizeIcon({ type, isSelected }) {
     );
   }
   if (type === 'us_letter') {
-    // Slightly shorter rectangle: 8.5x11 => ~0.773 ratio
     return (
       <svg viewBox="0 0 40 52" className="w-8 h-10 mx-auto">
         <rect x="2" y="2" width="36" height="48" rx="2" fill={fill} stroke={stroke} strokeWidth="2" />
@@ -78,7 +78,15 @@ function PageSizeIcon({ type, isSelected }) {
       </svg>
     );
   }
-  // Square: 8.5x8.5
+  if (type === 'custom') {
+    return (
+      <svg viewBox="0 0 44 52" className="w-8 h-10 mx-auto">
+        <rect x="2" y="2" width="40" height="48" rx="2" fill={fill} stroke={stroke} strokeWidth="2" strokeDasharray="4 3" />
+        <text x="22" y="30" textAnchor="middle" fill={stroke} fontSize="14" fontWeight="bold">?</text>
+      </svg>
+    );
+  }
+  // Square
   return (
     <svg viewBox="0 0 44 44" className="w-9 h-9 mx-auto">
       <rect x="2" y="2" width="40" height="40" rx="2" fill={fill} stroke={stroke} strokeWidth="2" />
@@ -110,6 +118,19 @@ function DensityIcon({ type, isSelected }) {
         <rect x="4" y="22" width="15" height="16" rx="2" fill={fill} stroke={stroke} strokeWidth="1.5" />
         <line x1="23" y1="26" x2="35" y2="26" stroke={stroke} strokeWidth="1" opacity="0.4" />
         <line x1="23" y1="31" x2="32" y2="31" stroke={stroke} strokeWidth="1" opacity="0.3" />
+      </svg>
+    );
+  }
+  if (type === 'custom') {
+    return (
+      <svg viewBox="0 0 40 40" className="w-8 h-8 mx-auto">
+        <rect x="2" y="2" width="11" height="11" rx="1.5" fill={fill} stroke={stroke} strokeWidth="1.5" />
+        <rect x="15" y="2" width="11" height="11" rx="1.5" fill={fill} stroke={stroke} strokeWidth="1.5" />
+        <rect x="28" y="2" width="11" height="11" rx="1.5" fill={fill} stroke={stroke} strokeWidth="1.5" />
+        <rect x="2" y="15" width="11" height="11" rx="1.5" fill={fill} stroke={stroke} strokeWidth="1.5" />
+        <rect x="15" y="15" width="11" height="11" rx="1.5" fill={fill} stroke={stroke} strokeWidth="1.5" />
+        <rect x="28" y="15" width="11" height="11" rx="1.5" fill={fill} stroke={stroke} strokeWidth="1.5" />
+        <text x="20" y="36" textAnchor="middle" fill={stroke} fontSize="8" fontWeight="bold">N</text>
       </svg>
     );
   }
@@ -147,35 +168,36 @@ function SettingsSummary({
   designScale, images, isAutoPageCount, partnerNames,
   occasion, openSections,
 }) {
+  const { t } = useTranslation('wizard');
   const anyCollapsed = Object.values(openSections).some(v => !v);
   if (!anyCollapsed) return null;
 
   const chips = [];
 
   if (selectedTemplate) {
-    const t = templates.find(t => t.slug === selectedTemplate);
-    chips.push({ key: 'template', label: t?.name || selectedTemplate });
+    const tmpl = templates.find(tmpl => tmpl.slug === selectedTemplate);
+    chips.push({ key: 'template', label: tmpl?.name || selectedTemplate });
   }
   if (vibe) {
     const v = VIBES.find(v => v.value === vibe);
     const VibeIcon = VIBE_ICONS[vibe];
-    chips.push({ key: 'vibe', label: v?.label || vibe, icon: VibeIcon });
+    chips.push({ key: 'vibe', label: v ? t(v.i18nLabel) : vibe, icon: VibeIcon });
   }
   if (imageLook && imageLook !== 'natural') {
     const l = IMAGE_LOOKS.find(l => l.value === imageLook);
-    chips.push({ key: 'look', label: l?.label || imageLook });
+    chips.push({ key: 'look', label: l ? t(l.i18nLabel) : imageLook });
   }
   const sizeObj = PAGE_SIZES.find(s => s.value === designScale.pageSize);
   if (sizeObj) {
-    chips.push({ key: 'size', label: sizeObj.label });
+    chips.push({ key: 'size', label: designScale.pageSize === 'custom' ? t('customSize') : t(sizeObj.i18nLabel) });
   }
   if (isAutoPageCount && images.length > 0) {
-    chips.push({ key: 'pages', label: `~${estimatePageCount(images.length)} pages` });
+    chips.push({ key: 'pages', label: `~${estimatePageCount(images.length)} ${t('pages')}` });
   } else if (!isAutoPageCount && designScale.pageCountTarget > 0) {
-    chips.push({ key: 'pages', label: `${designScale.pageCountTarget} pages` });
+    chips.push({ key: 'pages', label: `${designScale.pageCountTarget} ${t('pages')}` });
   }
   if (images.length > 0) {
-    chips.push({ key: 'photos', label: `${images.length} photo${images.length !== 1 ? 's' : ''}` });
+    chips.push({ key: 'photos', label: `${images.length} ${t('photos')}` });
   }
   const names = partnerNames.filter(Boolean).join(' & ');
   if (names) {
@@ -183,7 +205,7 @@ function SettingsSummary({
   }
   if (occasion) {
     const o = OCCASIONS.find(o => o.value === occasion);
-    if (o) chips.push({ key: 'occasion', label: o.label });
+    if (o) chips.push({ key: 'occasion', label: t(o.i18nLabel) });
   }
 
   if (chips.length === 0) return null;
@@ -209,6 +231,7 @@ function estimatePageCount(numPhotos) {
 }
 
 export default function StepSetup() {
+  const { t } = useTranslation('wizard');
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [openSections, setOpenSections] = useState({
@@ -243,11 +266,15 @@ export default function StepSetup() {
   const images = useBookStore(s => s.images);
   const imageDensity = useBookStore(s => s.imageDensity);
   const setImageDensity = useBookStore(s => s.setImageDensity);
+  const customDensityCount = useBookStore(s => s.customDensityCount);
+  const setCustomDensityCount = useBookStore(s => s.setCustomDensityCount);
+  const customPageSize = useBookStore(s => s.customPageSize);
+  const setCustomPageSize = useBookStore(s => s.setCustomPageSize);
 
   useEffect(() => {
     fetchTemplates()
       .then(setTemplates)
-      .catch(() => toast.error('Failed to load templates'))
+      .catch(() => toast.error(t('failedToLoadTemplates')))
       .finally(() => setLoading(false));
   }, []);
 
@@ -283,8 +310,8 @@ export default function StepSetup() {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-1">Set Up Your Book</h2>
-      <p className="text-gray-400 mb-6">Choose your style, add your details, and pick the format.</p>
+      <h2 className="text-2xl font-bold mb-1">{t('setUpYourBook')}</h2>
+      <p className="text-gray-400 mb-6">{t('setUpYourBookDesc')}</p>
 
       <SettingsSummary
         selectedTemplate={selectedTemplate}
@@ -302,8 +329,8 @@ export default function StepSetup() {
       <div className="space-y-1">
         <div className="border-b border-gray-800">
           <SectionHeader
-            title="Design Style"
-            subtitle={selectedTemplate ? `${selectedTemplate} \u00B7 ${IMAGE_LOOKS.find(l => l.value === imageLook)?.label || 'Natural'} photos` : 'Choose a template'}
+            title={t('designStyle')}
+            subtitle={selectedTemplate ? `${selectedTemplate} \u00B7 ${IMAGE_LOOKS.find(l => l.value === imageLook)?.label || t('lookNatural')} ${t('photos')}` : t('chooseATemplate')}
             isOpen={openSections.design}
             onToggle={() => toggleSection('design')}
           />
@@ -331,15 +358,23 @@ export default function StepSetup() {
                     ))}
                   </div>
 
+                  <Link
+                    to="/marketplace"
+                    className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl border border-dashed border-gray-700 text-gray-400 hover:text-white hover:border-gray-500 transition-colors text-sm"
+                  >
+                    <Store className="w-4 h-4" />
+                    {t('browseMarketplace')}
+                  </Link>
+
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Book Structure</label>
-                    <p className="text-xs text-gray-500 mb-3">How your story will be organized into chapters.</p>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">{t('bookStructure')}</label>
+                    <p className="text-xs text-gray-500 mb-3">{t('bookStructureDesc')}</p>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       {STRUCTURE_TEMPLATES.map(st => (
                         <button
                           key={st.value}
                           onClick={() => setStructureTemplate(st.value)}
-                          className={`p-3 rounded-xl text-left transition-all border ${
+                          className={`p-3 rounded-xl text-start transition-all border ${
                             structureTemplate === st.value
                               ? 'border-rose-500 bg-rose-500/10 ring-1 ring-rose-500/30'
                               : 'border-gray-700 bg-gray-900/40 hover:border-gray-600'
@@ -348,9 +383,9 @@ export default function StepSetup() {
                           <span className={`block text-sm font-semibold ${
                             structureTemplate === st.value ? 'text-rose-300' : 'text-gray-200'
                           }`}>
-                            {st.label}
+                            {t(st.i18nLabel)}
                           </span>
-                          <span className="block text-xs text-gray-500 mt-1">{st.description}</span>
+                          <span className="block text-xs text-gray-500 mt-1">{t(st.i18nDesc)}</span>
                         </button>
                       ))}
                     </div>
@@ -365,9 +400,9 @@ export default function StepSetup() {
                         <ChevronRight
                           className={`h-4 w-4 transition-transform ${showPhotoLookCustomize ? 'rotate-90' : ''}`}
                         />
-                        Customize Photo Style
+                        {t('customizePhotoStyle')}
                         <span className="text-xs text-gray-600">
-                          (currently: {IMAGE_LOOKS.find(l => l.value === imageLook)?.label || 'Natural'})
+                          ({t('currently')}: {t(IMAGE_LOOKS.find(l => l.value === imageLook)?.i18nLabel || 'lookNatural')})
                         </span>
                       </button>
                       <AnimatePresence initial={false}>
@@ -385,7 +420,7 @@ export default function StepSetup() {
                                 <button
                                   key={look.value}
                                   onClick={() => setImageLook(look.value)}
-                                  className={`flex items-start gap-3 px-3 py-3 rounded-xl text-left transition-all border ${
+                                  className={`flex items-start gap-3 px-3 py-3 rounded-xl text-start transition-all border ${
                                     imageLook === look.value
                                       ? 'border-rose-500 bg-rose-500/10 ring-1 ring-rose-500/30'
                                       : 'border-gray-700 bg-gray-900/40 hover:border-gray-600'
@@ -397,9 +432,9 @@ export default function StepSetup() {
                                   />
                                   <div className="min-w-0 flex-1">
                                     <span className={`block text-sm font-medium ${imageLook === look.value ? 'text-rose-300' : 'text-gray-300'}`}>
-                                      {look.label}
+                                      {t(look.i18nLabel)}
                                     </span>
-                                    <span className="block text-xs text-gray-500 mt-0.5">{look.description}</span>
+                                    <span className="block text-xs text-gray-500 mt-0.5">{t(look.i18nDesc)}</span>
                                   </div>
                                 </button>
                               ))}
@@ -417,8 +452,8 @@ export default function StepSetup() {
 
         <div className="border-b border-gray-800">
           <SectionHeader
-            title="About You"
-            subtitle={partnerNames.filter(Boolean).join(' & ') || 'Names, occasion, mood'}
+            title={t('aboutYou')}
+            subtitle={partnerNames.filter(Boolean).join(' & ') || t('namesOccasionMood')}
             isOpen={openSections.about}
             onToggle={() => toggleSection('about')}
           />
@@ -434,42 +469,48 @@ export default function StepSetup() {
               >
                 <div className="pb-6 space-y-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Your Names</label>
-                    <div className="grid grid-cols-2 gap-4">
-                      <input
-                        type="text"
-                        value={partnerNames[0]}
-                        onChange={e => updateName(0, e.target.value)}
-                        placeholder="Your name"
-                        className="bg-gray-900/60 border border-gray-700 rounded-lg px-4 py-2.5 text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-rose-500/50 focus:border-rose-500/50"
-                      />
-                      <input
-                        type="text"
-                        value={partnerNames[1]}
-                        onChange={e => updateName(1, e.target.value)}
-                        placeholder="Partner's name"
-                        className="bg-gray-900/60 border border-gray-700 rounded-lg px-4 py-2.5 text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-rose-500/50 focus:border-rose-500/50"
-                      />
+                    <label className="block text-sm font-medium text-gray-300 mb-1">{t('yourNamesAndNicknames')}</label>
+                    <p className="text-xs text-gray-500 mb-3">{t('yourNamesAndNicknamesDesc')}</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1.5">{t('yourNames')}</label>
+                        <input
+                          type="text"
+                          value={partnerNames[0]}
+                          onChange={e => updateName(0, e.target.value)}
+                          placeholder={t('yourNamesPlaceholder')}
+                          className="w-full bg-gray-900/60 border border-gray-700 rounded-lg px-4 py-2.5 text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-rose-500/50 focus:border-rose-500/50"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1.5">{t('partnerNames')}</label>
+                        <input
+                          type="text"
+                          value={partnerNames[1]}
+                          onChange={e => updateName(1, e.target.value)}
+                          placeholder={t('partnerNamesPlaceholder')}
+                          className="w-full bg-gray-900/60 border border-gray-700 rounded-lg px-4 py-2.5 text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-rose-500/50 focus:border-rose-500/50"
+                        />
+                      </div>
                     </div>
-                    <p className="text-xs text-gray-500 mt-2">So AI can address you by name throughout the book</p>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Special Occasion</label>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">{t('specialOccasion')}</label>
                     <select
                       value={occasion}
                       onChange={e => setOccasion(e.target.value)}
                       className="w-full bg-gray-900/60 border border-gray-700 rounded-lg px-4 py-2.5 text-gray-200 focus:outline-none focus:ring-2 focus:ring-rose-500/50 focus:border-rose-500/50"
                     >
                       {OCCASIONS.map(o => (
-                        <option key={o.value} value={o.value}>{o.label}</option>
+                        <option key={o.value} value={o.value}>{t(o.i18nLabel)}</option>
                       ))}
                     </select>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Vibe & Mood</label>
-                    <p className="text-xs text-gray-500 mb-3">Sets the tone for writing and visual style</p>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">{t('vibeMood')}</label>
+                    <p className="text-xs text-gray-500 mb-3">{t('vibeMoodDesc')}</p>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                       {VIBES.map(v => {
                         const VibeIcon = VIBE_ICONS[v.value];
@@ -477,7 +518,7 @@ export default function StepSetup() {
                           <button
                             key={v.value}
                             onClick={() => setVibe(v.value)}
-                            className={`px-3 py-3 rounded-xl text-left transition-all border ${
+                            className={`px-3 py-3 rounded-xl text-start transition-all border ${
                               vibe === v.value
                                 ? 'border-rose-500 bg-rose-500/10 ring-1 ring-rose-500/30'
                                 : 'border-gray-700 bg-gray-900/40 hover:border-gray-600'
@@ -485,9 +526,9 @@ export default function StepSetup() {
                           >
                             <span className={`flex items-center gap-1.5 text-sm font-medium ${vibe === v.value ? 'text-rose-300' : 'text-gray-300'}`}>
                               {VibeIcon && <VibeIcon className="w-4 h-4 flex-shrink-0" />}
-                              {v.label}
+                              {t(v.i18nLabel)}
                             </span>
-                            <span className="block text-xs text-gray-500 mt-0.5">{v.description}</span>
+                            <span className="block text-xs text-gray-500 mt-0.5">{t(v.i18nDesc)}</span>
                           </button>
                         );
                       })}
@@ -501,8 +542,8 @@ export default function StepSetup() {
 
         <div className="border-b border-gray-800">
           <SectionHeader
-            title="Book Format"
-            subtitle={`${PAGE_SIZES.find(s => s.value === designScale.pageSize)?.label || 'A4'} \u00B7 ${isAutoPageCount ? 'Auto pages' : `${designScale.pageCountTarget} pages`}`}
+            title={t('bookFormat')}
+            subtitle={`${designScale.pageSize === 'custom' ? t('customSize') : (t(PAGE_SIZES.find(s => s.value === designScale.pageSize)?.i18nLabel || 'pageSizeA4'))} \u00B7 ${isAutoPageCount ? t('autoPages') : `${designScale.pageCountTarget} ${t('pages')}`}`}
             isOpen={openSections.format}
             onToggle={() => toggleSection('format')}
           />
@@ -518,8 +559,8 @@ export default function StepSetup() {
               >
                 <div className="pb-6 space-y-6">
                   <div>
-                    <label className="block text-xs text-gray-500 mb-2">Page Size</label>
-                    <div className="grid grid-cols-3 gap-3">
+                    <label className="block text-xs text-gray-500 mb-2">{t('pageSize')}</label>
+                    <div className="grid grid-cols-4 gap-3">
                       {PAGE_SIZES.map(s => (
                         <button
                           key={s.value}
@@ -535,18 +576,75 @@ export default function StepSetup() {
                             <span className={`block text-sm font-semibold ${
                               designScale.pageSize === s.value ? 'text-rose-300' : 'text-gray-200'
                             }`}>
-                              {s.label}
+                              {t(s.i18nLabel)}
                             </span>
-                            <span className="block text-[11px] text-gray-500 mt-0.5">{s.description}</span>
+                            <span className="block text-[11px] text-gray-500 mt-0.5">{t(s.i18nDesc)}</span>
                           </div>
                         </button>
                       ))}
                     </div>
+                    {designScale.pageSize === 'custom' && (
+                      <div className="mt-3 p-3 rounded-lg border border-gray-700 bg-gray-900/40 space-y-3">
+                        <div className="flex items-center gap-2">
+                          <label className="text-xs text-gray-400 w-12">{t('unit')}</label>
+                          <div className="flex gap-1">
+                            {['in', 'cm'].map(u => (
+                              <button
+                                key={u}
+                                onClick={() => setCustomPageSize({ unit: u })}
+                                className={`px-3 py-1 rounded text-xs font-medium transition-all ${
+                                  customPageSize.unit === u
+                                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                                    : 'bg-gray-800 text-gray-400 border border-gray-700 hover:border-gray-600'
+                                }`}
+                              >
+                                {u === 'in' ? t('inches') : t('centimeters')}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <label className="text-xs text-gray-400 w-12">{t('width')}</label>
+                          <input
+                            type="number"
+                            min={1}
+                            max={50}
+                            step={0.1}
+                            value={customPageSize.width}
+                            onChange={e => {
+                              const val = parseFloat(e.target.value);
+                              if (!isNaN(val) && val > 0) setCustomPageSize({ width: val });
+                            }}
+                            className="flex-1 bg-gray-900/60 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-200 focus:outline-none focus:ring-2 focus:ring-rose-500/50"
+                          />
+                          <span className="text-xs text-gray-500">{customPageSize.unit}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <label className="text-xs text-gray-400 w-12">{t('height')}</label>
+                          <input
+                            type="number"
+                            min={1}
+                            max={50}
+                            step={0.1}
+                            value={customPageSize.height}
+                            onChange={e => {
+                              const val = parseFloat(e.target.value);
+                              if (!isNaN(val) && val > 0) setCustomPageSize({ height: val });
+                            }}
+                            className="flex-1 bg-gray-900/60 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-200 focus:outline-none focus:ring-2 focus:ring-rose-500/50"
+                          />
+                          <span className="text-xs text-gray-500">{customPageSize.unit}</span>
+                        </div>
+                        <p className="text-[10px] text-gray-600">
+                          {t('previewDimensions', { width: customPageSize.width, height: customPageSize.height, unit: customPageSize.unit })}
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   <div>
-                    <label className="block text-xs text-gray-500 mb-2">Photos Per Page</label>
-                    <div className="grid grid-cols-3 gap-3">
+                    <label className="block text-xs text-gray-500 mb-2">{t('photosPerPage')}</label>
+                    <div className="grid grid-cols-4 gap-3">
                       {IMAGE_DENSITIES.map(d => (
                         <button
                           key={d.value}
@@ -562,17 +660,52 @@ export default function StepSetup() {
                             <span className={`block text-sm font-semibold ${
                               imageDensity === d.value ? 'text-rose-300' : 'text-gray-200'
                             }`}>
-                              {d.label}
+                              {t(d.i18nLabel)}
                             </span>
-                            <span className="block text-[11px] text-gray-500 mt-0.5">{d.description}</span>
+                            <span className="block text-[11px] text-gray-500 mt-0.5">{t(d.i18nDesc)}</span>
                           </div>
                         </button>
                       ))}
                     </div>
+                    {imageDensity === 'custom' && (
+                      <div className="mt-3 p-3 rounded-lg border border-gray-700 bg-gray-900/40">
+                        <div className="flex items-center gap-3">
+                          <label className="text-xs text-gray-400">{t('maxPhotosPerPage')}</label>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => setCustomDensityCount(customDensityCount - 1)}
+                              disabled={customDensityCount <= 1}
+                              className="w-7 h-7 rounded bg-gray-800 border border-gray-700 text-gray-300 hover:border-gray-600 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center text-sm font-bold"
+                            >
+                              -
+                            </button>
+                            <input
+                              type="number"
+                              min={1}
+                              value={customDensityCount}
+                              onChange={e => {
+                                const val = parseInt(e.target.value, 10);
+                                if (!isNaN(val) && val >= 1) setCustomDensityCount(val);
+                              }}
+                              className="w-14 text-center bg-gray-900/60 border border-gray-700 rounded-lg px-2 py-1 text-sm text-gray-200 focus:outline-none focus:ring-2 focus:ring-rose-500/50"
+                            />
+                            <button
+                              onClick={() => setCustomDensityCount(customDensityCount + 1)}
+                              className="w-7 h-7 rounded bg-gray-800 border border-gray-700 text-gray-300 hover:border-gray-600 flex items-center justify-center text-sm font-bold"
+                            >
+                              +
+                            </button>
+                          </div>
+                        </div>
+                        <p className="text-[10px] text-gray-600 mt-1.5">
+                          {t('photosPerPageAdapt', { count: customDensityCount })}
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1">Page Count</label>
+                    <label className="block text-xs text-gray-500 mb-1">{t('pageCount')}</label>
                     <div className="flex gap-2">
                       <button
                         onClick={() => setDesignScale({ pageCountTarget: 0 })}
@@ -582,7 +715,7 @@ export default function StepSetup() {
                             : 'border-gray-700 bg-gray-900/40 text-gray-400 hover:border-gray-600'
                         }`}
                       >
-                        Auto
+                        {t('auto')}
                       </button>
                       <input
                         type="number"
@@ -599,13 +732,13 @@ export default function StepSetup() {
                         onFocus={() => {
                           if (isAutoPageCount) setDesignScale({ pageCountTarget: 24 });
                         }}
-                        placeholder="e.g. 36"
+                        placeholder={t('pageCountPlaceholder')}
                         className="flex-1 bg-gray-900/60 border border-gray-700 rounded-lg px-3 py-2.5 text-gray-200 placeholder-gray-600 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/50 focus:border-rose-500/50"
                       />
                     </div>
                     {isAutoPageCount && images.length > 0 && (
                       <p className="text-xs text-gray-500 mt-1.5">
-                        ~{estimatePageCount(images.length)} pages based on {images.length} photo{images.length !== 1 ? 's' : ''}
+                        {t('pagesBasedOnPhotos', { count: estimatePageCount(images.length), photoCount: images.length })}
                       </p>
                     )}
                   </div>
@@ -617,8 +750,8 @@ export default function StepSetup() {
 
         <div>
           <SectionHeader
-            title="Extras"
-            subtitle="Add-ons and quotes"
+            title={t('extras')}
+            subtitle={t('addOnsAndQuotes')}
             isOpen={openSections.extras}
             onToggle={() => toggleSection('extras')}
           />
@@ -652,14 +785,14 @@ export default function StepSetup() {
                           />
                           <div>
                             <span className="text-sm text-gray-200 font-medium">
-                              {addon.label}
+                              {t(addon.i18nLabel)}
                               {isComingSoon && (
-                                <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded-full bg-gray-700 text-gray-400 font-normal">
-                                  Coming Soon
+                                <span className="ms-2 text-[10px] px-1.5 py-0.5 rounded-full bg-gray-700 text-gray-400 font-normal">
+                                  {t('comingSoon')}
                                 </span>
                               )}
                             </span>
-                            <span className="block text-xs text-gray-500 mt-0.5">{addon.description}</span>
+                            <span className="block text-xs text-gray-500 mt-0.5">{t(addon.i18nDesc)}</span>
                           </div>
                         </label>
                       );
@@ -673,7 +806,7 @@ export default function StepSetup() {
                       onChange={e => setIncludeQuotes(e.target.checked)}
                       className="w-4 h-4 rounded border-gray-600 text-rose-500 focus:ring-rose-500 bg-gray-800"
                     />
-                    <span className="text-sm text-gray-300">Include inspirational quotes in the book</span>
+                    <span className="text-sm text-gray-300">{t('includeQuotes')}</span>
                   </label>
                 </div>
               </motion.div>

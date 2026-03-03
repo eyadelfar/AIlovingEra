@@ -1,7 +1,3 @@
-// Client-side CSS filter approximations of IMAGE_LOOK values.
-// The actual AI enhancement happens during generation — these are
-// lightweight visual previews for the wizard's live book preview.
-
 export const IMAGE_LOOK_CSS_FILTERS = {
   natural: 'none',
   film: 'saturate(0.9) contrast(1.1) sepia(0.08)',

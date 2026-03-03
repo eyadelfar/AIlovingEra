@@ -1,5 +1,7 @@
+import { MAX_IMAGES } from '../lib/constants';
+import { trackEvent } from '../lib/eventTracker';
+
 export const createWizardSlice = (set, get) => ({
-  // Wizard state
   currentStep: 0,
   selectedTemplate: null,
   structureTemplate: 'classic_timeline',
@@ -11,23 +13,33 @@ export const createWizardSlice = (set, get) => ({
   includeQuotes: true,
   constraints: [],
 
-  // Wizard actions
-  setStep: (step) => set({ currentStep: step }),
+  setStep: (step) => {
+    set({ currentStep: step });
+    trackEvent('step_entered', 'wizard', { step });
+  },
   nextStep: () => {
     const s = get();
-    // Trigger cartoon generation when leaving photo upload step (step 1 → 2)
     if (s.currentStep === 1 && s.images.length >= 2) {
-      s.triggerCartoonGeneration?.();
+      s.triggerCartoonGeneration();
+      // Pre-fetch questions so they're ready by the time user reaches StepYourStory
+      s.fetchQuestions();
     }
     set({ currentStep: Math.min(s.currentStep + 1, 3) });
   },
   prevStep: () => set((s) => ({ currentStep: Math.max(s.currentStep - 1, 0) })),
 
-  setTemplate: (slug) => set({ selectedTemplate: slug }),
+  setTemplate: (slug) => {
+    set({ selectedTemplate: slug });
+    trackEvent('template_selected', 'wizard', { template: slug });
+  },
   setStructureTemplate: (slug) => set({ structureTemplate: slug }),
 
   addImages: (files) => {
-    const newImages = Array.from(files).map(file => ({
+    const current = get().images.length;
+    const allowed = MAX_IMAGES - current;
+    if (allowed <= 0) return;
+    const incoming = Array.from(files).slice(0, allowed);
+    const newImages = incoming.map(file => ({
       id: crypto.randomUUID(),
       file,
       previewUrl: URL.createObjectURL(file),
@@ -37,6 +49,8 @@ export const createWizardSlice = (set, get) => ({
   },
 
   removeImage: (id) => {
+    const removed = get().images.find(i => i.id === id);
+    if (removed?.previewUrl) URL.revokeObjectURL(removed.previewUrl);
     set((s) => ({
       images: s.images.filter(i => i.id !== id),
     }));
@@ -60,10 +74,24 @@ export const createWizardSlice = (set, get) => ({
     });
   },
 
+  sortImagesByDate: () => {
+    set((s) => {
+      const sorted = [...s.images].sort((a, b) => {
+        const aTime = a.file?.lastModified || 0;
+        const bTime = b.file?.lastModified || 0;
+        return aTime - bTime;
+      });
+      return { images: sorted };
+    });
+  },
+
   setTextInput: (text) => set({ textInput: text }),
   setPartnerNames: (names) => set({ partnerNames: names }),
   setOccasion: (occ) => set({ occasion: occ }),
-  setVibe: (vibe) => set({ vibe }),
+  setVibe: (vibe) => {
+    set({ vibe });
+    trackEvent('vibe_selected', 'wizard', { vibe });
+  },
   setIncludeQuotes: (val) => set({ includeQuotes: val }),
   addConstraint: (text) => set((s) => ({ constraints: [...s.constraints, text] })),
   removeConstraint: (idx) => set((s) => ({ constraints: s.constraints.filter((_, i) => i !== idx) })),

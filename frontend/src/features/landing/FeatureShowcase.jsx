@@ -1,53 +1,32 @@
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 
-const features = [
-  {
-    title: 'AI-Written Narratives',
-    description: 'Warm, heartfelt stories crafted by AI that capture the emotion in your photos.',
-    gradient: 'from-rose-500 to-pink-500',
-  },
-  {
-    title: '4 Unique Templates',
-    description: 'Romantic, Funny, Elegant, or Vintage — each with distinct colors, fonts, and personality.',
-    gradient: 'from-violet-500 to-purple-500',
-  },
-  {
-    title: 'Smart Photo Analysis',
-    description: 'AI understands scenes, emotions, and people to create the perfect page layout.',
-    gradient: 'from-blue-500 to-cyan-500',
-  },
-  {
-    title: 'Instant PDF Download',
-    description: 'Get a beautifully designed, print-ready PDF memory book in minutes.',
-    gradient: 'from-amber-500 to-orange-500',
-  },
-  {
-    title: 'Voice Story Input',
-    description: 'Tell your story by voice — our speech-to-text captures every word.',
-    gradient: 'from-green-500 to-emerald-500',
-  },
-  {
-    title: 'Personalized for You',
-    description: 'Add names, occasions, and vibe preferences for a truly custom experience.',
-    gradient: 'from-pink-500 to-rose-500',
-  },
+const FEATURE_KEYS = [
+  { titleKey: 'featureNarratives', descKey: 'featureNarrativesDesc', gradient: 'from-rose-500 to-pink-500' },
+  { titleKey: 'featureTemplates', descKey: 'featureTemplatesDesc', gradient: 'from-violet-500 to-purple-500' },
+  { titleKey: 'featureAnalysis', descKey: 'featureAnalysisDesc', gradient: 'from-blue-500 to-cyan-500' },
+  { titleKey: 'featurePdf', descKey: 'featurePdfDesc', gradient: 'from-amber-500 to-orange-500' },
+  { titleKey: 'featureVoice', descKey: 'featureVoiceDesc', gradient: 'from-green-500 to-emerald-500' },
+  { titleKey: 'featurePersonalized', descKey: 'featurePersonalizedDesc', gradient: 'from-pink-500 to-rose-500' },
 ];
 
 export default function FeatureShowcase() {
+  const { t } = useTranslation();
+
   return (
     <section className="py-20 sm:py-28 bg-gray-900/30">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
-          <h2 className="text-3xl sm:text-4xl font-bold mb-4">Why You&apos;ll Love It</h2>
+          <h2 className="text-3xl sm:text-4xl font-bold mb-4">{t('whyYoullLoveIt')}</h2>
           <p className="text-gray-400 text-lg max-w-xl mx-auto">
-            Every feature designed to make your memories shine
+            {t('featuresSubtitle')}
           </p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {features.map((feat, i) => (
+          {FEATURE_KEYS.map((feat, i) => (
             <motion.div
-              key={feat.title}
+              key={feat.titleKey}
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -59,8 +38,8 @@ export default function FeatureShowcase() {
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
               </div>
-              <h3 className="font-semibold mb-2">{feat.title}</h3>
-              <p className="text-sm text-gray-400 leading-relaxed">{feat.description}</p>
+              <h3 className="font-semibold mb-2">{t(feat.titleKey)}</h3>
+              <p className="text-sm text-gray-400 leading-relaxed">{t(feat.descKey)}</p>
             </motion.div>
           ))}
         </div>

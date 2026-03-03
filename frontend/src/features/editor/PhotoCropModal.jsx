@@ -144,7 +144,7 @@ export default function PhotoCropModal({ src, initialCrop, onApply, onClose }) {
     : 'Drag to position your photo';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+    <div data-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
       <div className="bg-gray-900 rounded-2xl border border-gray-800 shadow-2xl max-w-lg w-full overflow-hidden">
         <div className="flex items-center justify-between px-5 py-3 border-b border-gray-800">
           <h3 className="text-sm font-semibold text-gray-200">Crop & Position</h3>

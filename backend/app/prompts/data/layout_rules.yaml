@@ -1,0 +1,303 @@
+pacing:
+  max_consecutive_dense: 2
+  breather_interval_min: 4
+  breather_interval_max: 6
+  breather_layouts: ["HERO_FULLBLEED", "QUOTE_PAGE", "TWO_BALANCED"]
+
+layouts:
+  HERO_FULLBLEED:
+    photo_count: [1, 1]
+    caption_support: true
+    longform_support: false
+    density_class: sparse
+    description: "Single hero image, full bleed. Optional big caption."
+    best_for: "standout photos, chapter openers/closers, panoramas"
+    scoring_weight: 1.0
+    aspect_ratio_compatibility:
+      landscape: 0.95
+      portrait: 0.7
+      square: 0.8
+      panorama: 1.0
+    vibe_affinity:
+      romantic_warm: 0.7
+      cinematic_poetic: 0.95
+      minimal_luxury: 0.9
+      bittersweet_lovely: 0.8
+      playful_meme: 0.5
+      comic_illustrated: 0.6
+    transition_rules:
+      follows_well_after: ["FOUR_GRID", "SIX_MONTAGE", "WALL_8_10"]
+      precedes_well_before: ["TWO_BALANCED", "PHOTO_PLUS_QUOTE"]
+      avoid_adjacent: ["HERO_FULLBLEED"]
+    face_visibility_weight: 0.3
+    min_resolution_px: 1200
+
+  TWO_BALANCED:
+    photo_count: [2, 2]
+    caption_support: true
+    longform_support: false
+    density_class: sparse
+    description: "Two images side-by-side with short captions."
+    best_for: "paired moments, before/after, parallel scenes"
+    scoring_weight: 0.9
+    aspect_ratio_compatibility:
+      landscape: 0.85
+      portrait: 0.9
+      square: 0.85
+      panorama: 0.5
+    vibe_affinity:
+      romantic_warm: 0.85
+      cinematic_poetic: 0.7
+      minimal_luxury: 0.8
+      bittersweet_lovely: 0.85
+      playful_meme: 0.7
+      comic_illustrated: 0.75
+    transition_rules:
+      follows_well_after: ["HERO_FULLBLEED", "QUOTE_PAGE"]
+      precedes_well_before: ["THREE_GRID", "PHOTO_PLUS_QUOTE"]
+      avoid_adjacent: []
+    face_visibility_weight: 0.6
+    min_resolution_px: 800
+
+  THREE_GRID:
+    photo_count: [3, 3]
+    caption_support: true
+    longform_support: false
+    density_class: balanced
+    description: "Three images in a grid with captions."
+    best_for: "event sequences, small clusters"
+    scoring_weight: 0.85
+    aspect_ratio_compatibility:
+      landscape: 0.8
+      portrait: 0.85
+      square: 0.9
+      panorama: 0.4
+    vibe_affinity:
+      romantic_warm: 0.7
+      cinematic_poetic: 0.5
+      minimal_luxury: 0.5
+      bittersweet_lovely: 0.7
+      playful_meme: 0.8
+      comic_illustrated: 0.85
+    transition_rules:
+      follows_well_after: ["HERO_FULLBLEED", "TWO_BALANCED"]
+      precedes_well_before: ["QUOTE_PAGE", "HERO_FULLBLEED"]
+      avoid_adjacent: ["FOUR_GRID"]
+    face_visibility_weight: 0.5
+    min_resolution_px: 600
+
+  FOUR_GRID:
+    photo_count: [4, 4]
+    caption_support: true
+    longform_support: false
+    density_class: dense
+    description: "Four images in a 2x2 grid with captions."
+    best_for: "event coverage, group shots"
+    scoring_weight: 0.8
+    aspect_ratio_compatibility:
+      landscape: 0.8
+      portrait: 0.8
+      square: 0.95
+      panorama: 0.3
+    vibe_affinity:
+      romantic_warm: 0.6
+      cinematic_poetic: 0.4
+      minimal_luxury: 0.3
+      bittersweet_lovely: 0.6
+      playful_meme: 0.85
+      comic_illustrated: 0.9
+    transition_rules:
+      follows_well_after: ["HERO_FULLBLEED", "TWO_BALANCED"]
+      precedes_well_before: ["QUOTE_PAGE", "HERO_FULLBLEED", "PHOTO_PLUS_QUOTE"]
+      avoid_adjacent: ["SIX_MONTAGE", "WALL_8_10"]
+    face_visibility_weight: 0.4
+    min_resolution_px: 500
+
+  SIX_MONTAGE:
+    photo_count: [5, 6]
+    caption_support: false
+    longform_support: false
+    density_class: dense
+    description: "Five or six images in a montage layout. Minimal captions."
+    best_for: "event overviews, travel montages"
+    scoring_weight: 0.75
+    aspect_ratio_compatibility:
+      landscape: 0.7
+      portrait: 0.7
+      square: 0.8
+      panorama: 0.3
+    vibe_affinity:
+      romantic_warm: 0.5
+      cinematic_poetic: 0.3
+      minimal_luxury: 0.2
+      bittersweet_lovely: 0.5
+      playful_meme: 0.9
+      comic_illustrated: 0.85
+    transition_rules:
+      follows_well_after: ["HERO_FULLBLEED", "PHOTO_PLUS_QUOTE"]
+      precedes_well_before: ["QUOTE_PAGE", "HERO_FULLBLEED"]
+      avoid_adjacent: ["WALL_8_10", "SIX_MONTAGE"]
+    face_visibility_weight: 0.3
+    min_resolution_px: 400
+
+  WALL_8_10:
+    photo_count: [8, 10]
+    caption_support: false
+    longform_support: false
+    density_class: dense
+    description: "Eight to ten tiny images as a wall/collage. No long captions."
+    best_for: "year-in-review montages, large event photo dumps"
+    scoring_weight: 0.6
+    aspect_ratio_compatibility:
+      landscape: 0.6
+      portrait: 0.6
+      square: 0.7
+      panorama: 0.2
+    vibe_affinity:
+      romantic_warm: 0.3
+      cinematic_poetic: 0.2
+      minimal_luxury: 0.1
+      bittersweet_lovely: 0.3
+      playful_meme: 0.8
+      comic_illustrated: 0.7
+    transition_rules:
+      follows_well_after: ["HERO_FULLBLEED"]
+      precedes_well_before: ["QUOTE_PAGE", "HERO_FULLBLEED"]
+      avoid_adjacent: ["WALL_8_10", "SIX_MONTAGE", "FOUR_GRID"]
+    face_visibility_weight: 0.2
+    min_resolution_px: 300
+
+  PHOTO_PLUS_QUOTE:
+    photo_count: [1, 4]
+    caption_support: true
+    longform_support: false
+    density_class: balanced
+    description: "Left side: 2-4 images. Right side: large quote + optional hero image."
+    best_for: "emotional beats, chapter transitions, milestone moments"
+    scoring_weight: 0.9
+    aspect_ratio_compatibility:
+      landscape: 0.8
+      portrait: 0.85
+      square: 0.8
+      panorama: 0.4
+    vibe_affinity:
+      romantic_warm: 0.9
+      cinematic_poetic: 0.85
+      minimal_luxury: 0.85
+      bittersweet_lovely: 0.9
+      playful_meme: 0.6
+      comic_illustrated: 0.65
+    transition_rules:
+      follows_well_after: ["THREE_GRID", "FOUR_GRID", "TWO_BALANCED"]
+      precedes_well_before: ["HERO_FULLBLEED", "TWO_BALANCED"]
+      avoid_adjacent: []
+    face_visibility_weight: 0.5
+    min_resolution_px: 600
+
+  COLLAGE_PLUS_LETTER:
+    photo_count: [3, 9]
+    caption_support: false
+    longform_support: true
+    density_class: balanced
+    description: "Left side: photo collage (6-9 images). Right side: long text block."
+    best_for: "letters, reflections, chapter closings"
+    scoring_weight: 0.85
+    aspect_ratio_compatibility:
+      landscape: 0.7
+      portrait: 0.7
+      square: 0.75
+      panorama: 0.3
+    vibe_affinity:
+      romantic_warm: 0.8
+      cinematic_poetic: 0.7
+      minimal_luxury: 0.5
+      bittersweet_lovely: 0.85
+      playful_meme: 0.4
+      comic_illustrated: 0.5
+    transition_rules:
+      follows_well_after: ["HERO_FULLBLEED", "TWO_BALANCED"]
+      precedes_well_before: ["QUOTE_PAGE", "HERO_FULLBLEED"]
+      avoid_adjacent: ["COLLAGE_PLUS_LETTER"]
+    face_visibility_weight: 0.3
+    min_resolution_px: 400
+
+  QUOTE_PAGE:
+    photo_count: [0, 1]
+    caption_support: false
+    longform_support: false
+    density_class: sparse
+    description: "Large quote with optional tiny image accent. Breathing room."
+    best_for: "pacing breathers, emotional pauses, transition pages"
+    scoring_weight: 0.7
+    aspect_ratio_compatibility:
+      landscape: 0.5
+      portrait: 0.5
+      square: 0.5
+      panorama: 0.3
+    vibe_affinity:
+      romantic_warm: 0.7
+      cinematic_poetic: 0.9
+      minimal_luxury: 0.95
+      bittersweet_lovely: 0.8
+      playful_meme: 0.5
+      comic_illustrated: 0.4
+    transition_rules:
+      follows_well_after: ["FOUR_GRID", "SIX_MONTAGE", "WALL_8_10", "COLLAGE_PLUS_LETTER"]
+      precedes_well_before: ["HERO_FULLBLEED", "TWO_BALANCED"]
+      avoid_adjacent: ["QUOTE_PAGE", "DEDICATION"]
+    face_visibility_weight: 0.0
+    min_resolution_px: 0
+
+  DEDICATION:
+    photo_count: [0, 1]
+    caption_support: false
+    longform_support: true
+    density_class: sparse
+    description: "Dedication page with heartfelt message."
+    best_for: "book opening, gift dedication"
+    scoring_weight: 0.6
+    aspect_ratio_compatibility:
+      landscape: 0.5
+      portrait: 0.5
+      square: 0.5
+      panorama: 0.3
+    vibe_affinity:
+      romantic_warm: 0.8
+      cinematic_poetic: 0.8
+      minimal_luxury: 0.9
+      bittersweet_lovely: 0.85
+      playful_meme: 0.6
+      comic_illustrated: 0.5
+    transition_rules:
+      follows_well_after: []
+      precedes_well_before: ["HERO_FULLBLEED", "TWO_BALANCED"]
+      avoid_adjacent: ["QUOTE_PAGE"]
+    face_visibility_weight: 0.0
+    min_resolution_px: 0
+
+  TOC_SIMPLE:
+    photo_count: [0, 0]
+    caption_support: false
+    longform_support: false
+    density_class: sparse
+    description: "Optional table of contents listing chapters."
+    best_for: "longer books (48+ pages) for navigation"
+    scoring_weight: 0.4
+    aspect_ratio_compatibility:
+      landscape: 0.5
+      portrait: 0.5
+      square: 0.5
+      panorama: 0.5
+    vibe_affinity:
+      romantic_warm: 0.4
+      cinematic_poetic: 0.5
+      minimal_luxury: 0.7
+      bittersweet_lovely: 0.4
+      playful_meme: 0.3
+      comic_illustrated: 0.3
+    transition_rules:
+      follows_well_after: ["DEDICATION"]
+      precedes_well_before: ["HERO_FULLBLEED"]
+      avoid_adjacent: ["QUOTE_PAGE"]
+    face_visibility_weight: 0.0
+    min_resolution_px: 0

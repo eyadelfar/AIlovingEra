@@ -1,4 +1,5 @@
 import { apiFetch } from '../lib/api';
+import i18n from '../lib/i18n';
 
 export async function transcribeAudio(audioBlob) {
   const ext = audioBlob.type.includes('mp4') ? 'mp4'
@@ -6,6 +7,9 @@ export async function transcribeAudio(audioBlob) {
     : 'webm';
   const form = new FormData();
   form.append('audio', audioBlob, `recording.${ext}`);
+  if (i18n.language) {
+    form.append('language', i18n.language);
+  }
   const res = await apiFetch('/api/stt/transcribe', { method: 'POST', body: form });
   return (await res.json()).text;
 }

@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap');
 
 :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
@@ -9,19 +10,7 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  /* ── Z-index scale ── */
-  --z-page: 0;
-  --z-sticky: 20;
-  --z-navbar: 30;
-  --z-popover: 40;
-  --z-modal: 50;
-  --z-lightbox: 50;
-  --z-toast: 60;
-
-  /* ── Layout tokens ── */
-  --navbar-h: 4rem; /* 64px — h-16 */
-
-  /* ── Scrollbar styling ── */
+  --navbar-h: 4rem;
   scrollbar-color: #374151 transparent;
 }
 
@@ -33,18 +22,57 @@ body {
   color: #f1f5f9;
 }
 
-/* Anchor scroll offset for fixed navbar */
 html {
   scroll-padding-top: var(--navbar-h);
 }
 
-/* Body scroll lock when modal is open */
+[dir="rtl"] {
+  font-family: 'Noto Sans Arabic', system-ui, Avenir, Helvetica, Arial, sans-serif;
+}
+
 body.modal-open {
   overflow: hidden;
 }
 
-/* Custom scrollbar for Webkit */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+
+.scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+.scrollbar-none::-webkit-scrollbar { display: none; }
+
+/* Logo wordmark — light beam sweeps left→right across the letters */
+.ks-wordmark {
+  position: relative;
+  overflow: hidden;
+}
+.ks-wordmark::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent          15%,
+    rgba(255,255,255,0.28) 50%,
+    transparent          85%
+  );
+  background-size: 250% 100%;
+  background-position: -150% 0;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+  animation: ks-sweep 3s ease-in-out infinite;
+}
+.ks-wordmark:hover::after {
+  animation: ks-sweep 1.3s ease-in-out infinite;
+}
+@keyframes ks-sweep {
+  0%,  45% { background-position: -150% 0; }
+  88%      { background-position:  220% 0; }
+  100%     { background-position:  220% 0; }
+}
+
+/* Responsive photo collage centering (generation animation) */
+@media (min-width: 640px) {
+  .w-20.sm\:w-24 { --photo-half: 3rem; }
+}

@@ -1,0 +1,155 @@
+{
+  "title": "لوحة الإدارة",
+  "search": "بحث...",
+  "noData": "لا توجد بيانات",
+  "confirm": "تأكيد",
+  "cancel": "إلغاء",
+  "pagination": "صفحة {{page}} من {{totalPages}} ({{total}} إجمالي)",
+
+  "nav": {
+    "dashboard": "لوحة المعلومات",
+    "users": "المستخدمون",
+    "revenue": "الإيرادات",
+    "designs": "التصاميم",
+    "contacts": "الرسائل",
+    "system": "النظام",
+    "auditLog": "سجل المراجعة",
+    "signOut": "تسجيل الخروج",
+    "backToSite": "العودة للموقع"
+  },
+
+  "dashboard": {
+    "title": "نظرة عامة",
+    "totalUsers": "إجمالي المستخدمين",
+    "totalRevenue": "إجمالي الإيرادات",
+    "totalGenerations": "إجمالي التوليدات",
+    "activeSubscriptions": "الاشتراكات النشطة",
+    "pendingReviews": "مراجعات معلقة",
+    "openTickets": "تذاكر مفتوحة",
+    "revenueChart": "الإيرادات (30 يوم)",
+    "userGrowthChart": "نمو المستخدمين (30 يوم)",
+    "generationChart": "التوليدات (30 يوم)",
+    "templatePopularity": "شعبية القوالب",
+    "usersToday": "مستخدمون اليوم",
+    "revenueToday": "إيرادات اليوم",
+    "generationsToday": "توليدات اليوم"
+  },
+
+  "users": {
+    "title": "إدارة المستخدمين",
+    "name": "الاسم",
+    "plan": "الخطة",
+    "role": "الدور",
+    "credits": "الرصيد",
+    "books": "الكتب",
+    "joined": "تاريخ الانضمام",
+    "view": "عرض",
+    "ban": "حظر",
+    "unban": "إلغاء الحظر",
+    "banned": "تم حظر المستخدم بنجاح",
+    "unbanned": "تم إلغاء حظر المستخدم بنجاح",
+    "banTitle": "حظر المستخدم",
+    "unbanTitle": "إلغاء حظر المستخدم",
+    "unbanMessage": "هل أنت متأكد من إلغاء حظر {{name}}؟",
+    "banReasonPlaceholder": "أدخل سبب الحظر...",
+    "adjustCredits": "تعديل الرصيد",
+    "adjustCreditsTitle": "تعديل الرصيد",
+    "adjustCreditsFor": "تعديل رصيد {{name}}",
+    "creditsAdjusted": "تم تعديل الرصيد بنجاح",
+    "amountPlaceholder": "المبلغ (موجب للإضافة، سالب للخصم)",
+    "reasonPlaceholder": "سبب التعديل",
+    "changeRole": "تغيير الدور",
+    "changeRoleTitle": "تغيير دور المستخدم",
+    "changeRoleFor": "تغيير دور {{name}}",
+    "roleChanged": "تم تغيير الدور بنجاح",
+    "searchPlaceholder": "البحث بالاسم أو المعرف...",
+    "allPlans": "جميع الخطط",
+    "allRoles": "جميع الأدوار",
+    "backToList": "العودة للمستخدمين",
+    "bannedBadge": "محظور"
+  },
+
+  "userDetail": {
+    "purchases": "المشتريات",
+    "generations": "التوليدات",
+    "creditHistory": "سجل الرصيد",
+    "template": "القالب",
+    "duration": "المدة",
+    "delta": "التغيير",
+    "reason": "السبب"
+  },
+
+  "revenue": {
+    "title": "إدارة الإيرادات",
+    "planId": "الخطة",
+    "type": "النوع",
+    "amount": "المبلغ",
+    "status": "الحالة",
+    "date": "التاريخ",
+    "refund": "استرداد",
+    "refunded": "تم استرداد المبلغ بنجاح",
+    "refundTitle": "استرداد المشتريات",
+    "refundMessage": "هل أنت متأكد من استرداد {{amount}}؟",
+    "refundReasonPlaceholder": "أدخل سبب الاسترداد...",
+    "purchases": "المشتريات",
+    "paymentAudit": "سجل مراجعة الدفع",
+    "allStatuses": "جميع الحالات",
+    "eventType": "نوع الحدث",
+    "userId": "معرف المستخدم"
+  },
+
+  "designs": {
+    "title": "التصاميم المقدمة",
+    "name": "الاسم",
+    "category": "الفئة",
+    "submittedAt": "تاريخ التقديم",
+    "review": "مراجعة",
+    "reviewed": "تمت مراجعة التصميم بنجاح",
+    "reviewTitle": "مراجعة التصميم",
+    "approve": "قبول",
+    "reject": "رفض",
+    "notesPlaceholder": "ملاحظات المسؤول (اختياري)...",
+    "allStatuses": "جميع الحالات"
+  },
+
+  "contacts": {
+    "title": "رسائل التواصل",
+    "name": "الاسم",
+    "email": "البريد الإلكتروني",
+    "subject": "الموضوع",
+    "respond": "الرد",
+    "view": "عرض",
+    "updated": "تم تحديث الرسالة بنجاح",
+    "respondTitle": "الرد على الرسالة",
+    "send": "حفظ",
+    "responsePlaceholder": "اكتب ردك...",
+    "previousResponse": "الرد السابق",
+    "allStatuses": "جميع الحالات"
+  },
+
+  "system": {
+    "title": "صحة النظام",
+    "status": "الحالة",
+    "uptime": "وقت التشغيل",
+    "sessions": "الجلسات النشطة",
+    "aiModel": "نموذج الذكاء الاصطناعي",
+    "configuration": "الإعدادات",
+    "aiProvider": "مزود الذكاء الاصطناعي",
+    "artModel": "نموذج الفن",
+    "recentErrors": "أخطاء التوليد الأخيرة",
+    "template": "القالب",
+    "errorMessage": "رسالة الخطأ",
+    "noErrors": "لا توجد أخطاء حديثة"
+  },
+
+  "audit": {
+    "title": "سجل مراجعة الإدارة",
+    "action": "الإجراء",
+    "targetType": "نوع الهدف",
+    "targetId": "معرف الهدف",
+    "admin": "المسؤول",
+    "ip": "عنوان IP",
+    "details": "التفاصيل",
+    "allActions": "جميع الإجراءات"
+  }
+}

@@ -1,0 +1,28 @@
+examples:
+  - context: "Chapter opener, 2 photos of couple at old apartment"
+    photos:
+      - desc: "Empty apartment with boxes, couple standing in doorway"
+      - desc: "Old photo pinned to wall, couple in same spot years ago"
+    expected:
+      layout: TWO_BALANCED
+      heading_text: "The Rooms That Held Us"
+      body_text: "We measured the walls for shelves we never built. Left nail holes we promised to fill. The landlord will paint over everything, but the apartment will always remember us standing right here."
+      caption_text: "The last box, the last look back."
+
+  - context: "Emotional pause, quote page between chapters"
+    photos: []
+    expected:
+      layout: QUOTE_PAGE
+      heading_text: ""
+      body_text: ""
+      caption_text: ""
+      quote_text: "We didn't know those were the good old days while we were living them. But looking at these photos — we kind of did."
+
+  - context: "Chapter closer, 1 hero photo of couple at airport"
+    photos:
+      - desc: "Couple hugging at airport gate, one person has a backpack"
+    expected:
+      layout: HERO_FULLBLEED
+      heading_text: "The Distance That Made Us Closer"
+      body_text: "Seven thousand miles and a nine-hour time difference. You'd think that would break something. Instead, it taught us that love isn't about proximity — it's about showing up, even through a screen."
+      caption_text: "Gate 42. The hardest and best goodbye."

@@ -36,7 +36,7 @@ export function SelectionProvider({ children, enabled }) {
     if (!enabled || !selected) return;
     function handleClick(e) {
       // Ignore clicks inside floating toolbars / popovers
-      if (e.target.closest('[data-toolbar]') || e.target.closest('[data-popover]')) return;
+      if (e.target.closest('[data-toolbar]') || e.target.closest('[data-popover]') || e.target.closest('[data-modal]')) return;
       // Ignore clicks on interactive elements (other photos/text will handle their own selection)
       if (e.target.closest('[data-selectable]')) return;
       clearSelection();

@@ -1,0 +1,30 @@
+examples:
+  - context: "Chapter opener, 2 photos of couple at park, golden hour"
+    photos:
+      - desc: "Couple sitting on blanket, golden hour light"
+      - desc: "Close-up of couple laughing, soft focus background"
+    expected:
+      layout: TWO_BALANCED
+      heading_text: "Where It All Began"
+      body_text: "That blanket in Riverside Park — the one with the wine stain from our second date. We didn't plan to stay until sunset, but here we are, three years later, still not ready to leave."
+      caption_text: "October light and the beginning of everything."
+
+  - context: "Emotional beat, 1 hero photo of proposal moment"
+    photos:
+      - desc: "Man kneeling with ring box, woman covering mouth in surprise"
+    expected:
+      layout: HERO_FULLBLEED
+      heading_text: "The Question That Changed Everything"
+      body_text: "You said you had a reservation at seven. What you actually had was a ring, a plan, and the most nervous smile I've ever seen."
+      caption_text: "She said yes before he finished asking."
+
+  - context: "Chapter transition, 3 photos of daily moments"
+    photos:
+      - desc: "Couple cooking together in kitchen"
+      - desc: "Lazy morning with coffee in bed"
+      - desc: "Walking the dog together"
+    expected:
+      layout: THREE_GRID
+      heading_text: "The Ordinary Magic"
+      body_text: "Not every chapter needs a plot twist. Sometimes the best part is the morning coffee, the burnt toast, and the dog who always sits between us on the couch."
+      caption_text: "Tuesday mornings, better than any vacation."

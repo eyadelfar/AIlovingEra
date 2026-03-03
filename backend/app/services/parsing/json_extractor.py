@@ -1,10 +1,11 @@
 """Pure functions for extracting and repairing JSON from AI responses."""
 
 import json
-import logging
 import re
 
-logger = logging.getLogger(__name__)
+import structlog
+
+logger = structlog.get_logger()
 
 
 def extract_json(text: str) -> str:
@@ -13,7 +14,7 @@ def extract_json(text: str) -> str:
     match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", text)
     if match:
         extracted = match.group(1)
-        logger.debug("extract_json: extracted %d chars from markdown fence", len(extracted))
+        logger.debug("json_extracted_from_fence", length=len(extracted))
         return extracted
 
     # Try balanced brace extraction
@@ -47,7 +48,7 @@ def extract_json(text: str) -> str:
                 depth -= 1
                 if depth == 0:
                     extracted = text[start:i + 1]
-                    logger.debug("extract_json: balanced extraction, %d chars", len(extracted))
+                    logger.debug("json_balanced_extraction", length=len(extracted))
                     return extracted
 
     # Fallback: greedy regex
@@ -175,7 +176,7 @@ def repair_truncated_json(text: str) -> str:
                 stack.pop()
 
         closers = ''.join(reversed(stack))
-        logger.debug("repair_truncated_json: appending %d closers: %s", len(closers), closers)
+        logger.debug("json_truncation_repaired", num_closers=len(closers), closers=closers)
 
     result = stripped + closers
 

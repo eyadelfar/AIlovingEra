@@ -1,5 +1,6 @@
-import logging
+import time
 
+import structlog
 from google import genai
 from google.genai import types
 
@@ -7,7 +8,7 @@ from app.interfaces.ai_service import AbstractAIService
 from app.models.ai_result import AIServiceResult
 from app.services.gemini_rate_limiter import with_rate_limit_retry
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 
 class GeminiService(AbstractAIService):
@@ -42,6 +43,7 @@ class GeminiService(AbstractAIService):
         if max_output_tokens is not None:
             config_kwargs["max_output_tokens"] = max_output_tokens
 
+        t0 = time.perf_counter()
         try:
             response = await with_rate_limit_retry(
                 lambda: self._client.aio.models.generate_content(
@@ -53,7 +55,7 @@ class GeminiService(AbstractAIService):
         except ValueError:
             raise
         except Exception as exc:
-            logger.error("Gemini API call failed: %s", exc)
+            logger.error("gemini_api_call_failed", exc_info=True)
             raise ValueError(f"AI service error: {exc}") from exc
 
         if not response.parts:
@@ -70,8 +72,39 @@ class GeminiService(AbstractAIService):
                 output_images.append(part.inline_data.data)
                 output_mime_types.append(part.inline_data.mime_type)
 
+        duration_ms = round((time.perf_counter() - t0) * 1000, 1)
+        combined_text = "\n".join(text_parts)
+
+        # Extract usage metadata if available
+        usage = {}
+        if hasattr(response, "usage_metadata") and response.usage_metadata:
+            um = response.usage_metadata
+            usage = {
+                "prompt_tokens": getattr(um, "prompt_token_count", None),
+                "output_tokens": getattr(um, "candidates_token_count", None),
+                "total_tokens": getattr(um, "total_token_count", None),
+            }
+
+        # Detect safety filtering
+        was_filtered = not response.parts or (
+            hasattr(response, "prompt_feedback") and response.prompt_feedback
+        )
+
+        logger.info(
+            "gemini_api_call_complete",
+            duration_ms=duration_ms,
+            model=self._model_name,
+            num_output_parts=len(response.parts),
+            num_input_images=len(images),
+            prompt_chars=len(prompt),
+            response_chars=len(combined_text),
+            num_output_images=len(output_images),
+            safety_filtered=was_filtered,
+            **usage,
+        )
+
         return AIServiceResult(
-            text="\n".join(text_parts),
+            text=combined_text,
             images=output_images,
             image_mime_types=output_mime_types,
         )

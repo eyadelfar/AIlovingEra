@@ -1,8 +1,10 @@
+import { useTranslation } from 'react-i18next';
 import useBookStore from '../../stores/bookStore';
 import ImageUploader from '../shared/ImageUploader';
 import ImagePreviewGrid from '../shared/ImagePreviewGrid';
 
 export default function StepPhotoUpload() {
+  const { t } = useTranslation('wizard');
   const images = useBookStore(s => s.images);
   const addImages = useBookStore(s => s.addImages);
   const removeImage = useBookStore(s => s.removeImage);
@@ -11,9 +13,9 @@ export default function StepPhotoUpload() {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-2">Upload Your Photos</h2>
+      <h2 className="text-2xl font-bold mb-2">{t('uploadYourPhotos')}</h2>
       <p className="text-gray-400 mb-8">
-        Add the photos you want in your memory book. The AI will analyze each one to craft the perfect story.
+        {t('uploadYourPhotosDesc')}
       </p>
 
       <ImageUploader onFilesSelected={addImages} currentCount={images.length} />

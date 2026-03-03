@@ -26,6 +26,7 @@ class PageSize(str, Enum):
     a4 = "a4"
     us_letter = "us_letter"
     square = "square"
+    custom = "custom"
 
 
 class Vibe(str, Enum):
@@ -96,6 +97,38 @@ class PhotoMetadata(BaseModel):
     orientation: str = "landscape"
     exif_date: str | None = None
     date_confidence: float = 0.0
+    gps_lat: float | None = None
+    gps_lon: float | None = None
+    camera_model: str = ""
+    focal_length: float | None = None
+    dominant_color: str = ""  # hex string like "#ff5500"
+    iso: int | None = None
+    exposure_time: str | None = None  # e.g. "1/250"
+    f_stop: float | None = None
+    blur_score: float = 0.0  # 0=sharp, 1=blurry
+    exposure_quality: float = 0.0  # 0=bad, 1=perfect
+    face_count: int = 0
+    file_size_bytes: int = 0
+    perceptual_hash: str = ""  # dHash for near-duplicate detection
+
+
+class ImageRelationship(BaseModel):
+    index_a: int
+    index_b: int
+    same_location: float = 0.0   # 0-1 score
+    same_people: float = 0.0
+    sequential: float = 0.0
+    related: float = 0.0
+    same_event: float = 0.0
+    same_mood: float = 0.0
+    temporal_distance: float = 0.0  # estimated hours apart
+    visual_similarity: float = 0.0  # pHash distance
+    narrative_arc_position: str = ""  # "same_beat", "build_up", "contrast"
+
+
+class ImageRelationships(BaseModel):
+    pairs: list[ImageRelationship] = []
+    clusters: list[list[int]] = []  # groups of related image indices
 
 
 class PhotoCluster(BaseModel):
@@ -174,6 +207,47 @@ class PhotoAnalysis(BaseModel):
     face_regions: list[CropBox] = []
     safe_crop_box: CropBox = CropBox()
     date_confidence: float = 0.0
+    activity: str = ""  # "dining", "hiking", "dancing"
+    color_palette: list[str] = []  # top 3-5 hex colors
+    composition_score: float = 0.0  # 0-1
+    quality_score: float = 0.0  # 0-1 composite
+    is_duplicate: bool = False
+    duplicate_of: int | None = None
+    is_book_worthy: bool = True
+    book_worthiness_reason: str = ""
+    mood: str = ""  # "joyful", "serene", "nostalgic"
+    narrative_role: str = ""  # "opener", "climax", "transition", "filler"
+
+
+# ── Quality scoring ──────────────────────────────────────────────────────
+
+class FaceQuality(BaseModel):
+    face_index: int = 0
+    photo_index: int = 0
+    crop_box: CropBox = CropBox()
+    frontality: float = 0.0  # 0-1
+    expression: str = ""
+    blur: float = 0.0
+    size_fraction: float = 0.0
+    is_primary_subject: bool = False
+
+
+class PhotoQualityScore(BaseModel):
+    photo_index: int = 0
+    sharpness_score: float = 0.0  # 0=blurry, 1=sharp
+    exposure_score: float = 0.0
+    composition_score: float = 0.0
+    face_quality_score: float = 0.0
+    overall: float = 0.0
+    is_book_worthy: bool = True
+    reason: str = ""
+
+
+class DuplicateGroup(BaseModel):
+    group_id: int = 0
+    photo_indices: list[int] = []
+    best_index: int = 0
+    similarity_score: float = 0.0
 
 
 # ── Page / spread / chapter ──────────────────────────────────────────────
@@ -337,9 +411,31 @@ class BookGenerationRequest(BaseModel):
     add_ons: AddOns = AddOns()
     question_answers: list[AIQuestionAnswer] = []
     constraints: list[str] = []
+    locale: str = "en"
+
+
+class AnalyzeResult(BaseModel):
+    """Intermediate result from stages A + B (photo analysis)."""
+    photo_analyses: list[dict] = []
+    clusters: list[dict] = []
+    quality_scores: list[PhotoQualityScore] = []
+    duplicate_groups: list[DuplicateGroup] = []
+    metadata: list[dict] = []
+    num_photos: int = 0
+
+
+class PlanResult(BaseModel):
+    """Intermediate result from stage C (book planning)."""
+    plan: dict = {}
+    estimated_pages: int = 0
+    num_chapters: int = 0
+    num_spreads: int = 0
 
 
 class BookGenerationResponse(BaseModel):
     draft: MemoryBookDraft
     photo_analyses: list[PhotoAnalysis]
     estimated_pages: int
+    quality_scores: list[PhotoQualityScore] = []
+    duplicate_groups: list[DuplicateGroup] = []
+    preview_only: bool = False

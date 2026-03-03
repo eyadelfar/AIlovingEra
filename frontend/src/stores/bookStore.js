@@ -14,34 +14,50 @@ const useBookStore = create((...a) => ({
   ...createViewerSlice(...a),
   ...createEditorSlice(...a),
 
-  // Reset (touches state from multiple slices)
+  hydrateFromExport: (payload) => {
+    const [set, get] = a;
+    // Cleanup existing state
+    get().images.forEach(img => URL.revokeObjectURL(img.previewUrl));
+    const timer = get()._questionRevealTimer;
+    if (timer) clearInterval(timer);
+    const ctrl = get()._abortController;
+    if (ctrl) ctrl.abort();
+    // Atomic state replacement
+    set(payload);
+    // Initialize editor from restored bookDraft
+    get().initEditor();
+  },
+
   reset: () => {
     const [set, get] = a;
     const s = get();
+    // Clean up timers and abort controllers before resetting state
+    const questionTimer = s._questionRevealTimer;
+    if (questionTimer) clearInterval(questionTimer);
+    const abortController = s._abortController;
+    if (abortController) abortController.abort();
     s.images.forEach(img => URL.revokeObjectURL(img.previewUrl));
     set({
-      // Wizard
       currentStep: 0, selectedTemplate: null, structureTemplate: 'classic_timeline',
       images: [], textInput: '', partnerNames: ['', ''], occasion: '',
       vibe: 'romantic_warm', includeQuotes: true, constraints: [],
-      // Questions
       aiQuestions: [], questionAnswers: {}, isLoadingQuestions: false,
-      // Settings
-      imageLook: 'natural',
-      imageDensity: 'balanced',
+      imageLook: 'natural', imageDensity: 'balanced',
       designScale: { pageSize: 'a4', pageCountTarget: 0, bleedMm: 3, marginMm: 12 },
       addOns: { loveLetter: false, audioQrCodes: false, anniversaryCover: false, miniReel: false },
       blendPhotos: false,
-      // Generation
       isGenerating: false, generationProgress: 0, generationStage: '',
-      bookDraft: null, photoAnalyses: [], error: null,
-      cartoonImages: [], cartoonError: null,
-      // Viewer
+      generationTotalPages: 0, generationCurrentPage: 0,
+      _abortController: null, _questionRevealTimer: null,
+      bookDraft: null, photoAnalyses: [], previewOnly: false, error: null, cartoonImages: [], cartoonLoading: false,
+      customTheme: { pageBgColor: '#1a1020', headingColor: '#f9a8d4', bodyColor: '#e2e8f0', accentColor: '#c084fc', photoFrameStyle: 'rounded' },
+      customDensityCount: 4, customPageSize: { width: 8.5, height: 11, unit: 'in' },
       currentPage: 0, isEditMode: false, viewMode: 'spread',
-      // Editor
       useOriginalPhotos: false, editorDraft: null, editorHistory: [], editorFuture: [],
       selectedChapterIndex: null, selectedSpreadIndex: null, isRegenerating: false,
       editorDirty: false, cropOverrides: {}, filterOverrides: {},
+      positionOffsets: {}, blendOverrides: {}, textStyleOverrides: {},
+      textPositionOffsets: {}, sizeOverrides: {},
     });
   },
 }));

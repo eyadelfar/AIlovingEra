@@ -1,6 +1,6 @@
 """Pure functions for generating fallback book drafts when AI parsing fails."""
 
-import logging
+import structlog
 from math import ceil
 
 from app.models.schemas import (
@@ -10,7 +10,7 @@ from app.models.schemas import (
     SpreadDraft,
 )
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 
 FALLBACK_QUOTES = [
@@ -71,7 +71,7 @@ def fallback(
     photo_analyses: list[dict] | None = None,
 ) -> MemoryBookDraft:
     """Generate a complete fallback draft when AI parsing fails entirely."""
-    logger.warning("fallback: generating fallback draft for %d photos", num_photos)
+    logger.warning("fallback_draft_generating", num_photos=num_photos)
 
     def _get_analysis(idx: int) -> dict:
         if photo_analyses and idx < len(photo_analyses):

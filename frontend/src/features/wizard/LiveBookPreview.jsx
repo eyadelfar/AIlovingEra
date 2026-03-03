@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronDown, Heart, Film as FilmIcon, Award,
@@ -8,50 +9,50 @@ import useBookStore from '../../stores/bookStore';
 import { TEMPLATE_STYLES } from '../viewer/templateStyles';
 import { PageOrnaments, PageBgPattern } from '../viewer/PageOrnaments';
 import { IMAGE_LOOK_CSS_FILTERS } from '../../lib/previewFilters';
-import { IMAGE_LOOKS, VIBES, PAGE_ASPECT } from '../../lib/constants';
+import { IMAGE_LOOKS, PAGE_SIZES, getPageAspect } from '../../lib/constants';
 import SamplePhoto from './SamplePhoto';
 
-// ── Vibe-contextual sample copy ─────────────────────────────────────────
-const VIBE_COPY = {
+// ── Vibe-contextual sample copy i18n keys ─────────────────────────────────
+const VIBE_COPY_KEYS = {
   romantic_warm: {
-    coverTitle: 'Our First Dance',
-    heading: 'The Moment I Knew',
-    body: 'The way you smiled under the fairy lights made everything else disappear.',
-    caption: 'A night we will never forget',
+    coverTitle: 'vibeCoverRomanticWarm',
+    heading: 'vibeHeadingRomanticWarm',
+    body: 'vibeBodyRomanticWarm',
+    caption: 'vibeCaptionRomanticWarm',
   },
   bittersweet_lovely: {
-    coverTitle: 'Time Stood Still',
-    heading: 'Fading Light',
-    body: 'Some moments are too beautiful to forget, too fleeting to hold onto forever.',
-    caption: 'Captured before it slipped away',
+    coverTitle: 'vibeCoverBittersweetLovely',
+    heading: 'vibeHeadingBittersweetLovely',
+    body: 'vibeBodyBittersweetLovely',
+    caption: 'vibeCaptionBittersweetLovely',
   },
   playful_meme: {
-    coverTitle: 'That One Time...',
-    heading: 'Absolute Chaos',
-    body: 'When you tried to cook dinner and set off every alarm in the building.',
-    caption: 'No regrets, only vibes',
+    coverTitle: 'vibeCoverPlayfulMeme',
+    heading: 'vibeHeadingPlayfulMeme',
+    body: 'vibeBodyPlayfulMeme',
+    caption: 'vibeCaptionPlayfulMeme',
   },
   comic_illustrated: {
-    coverTitle: 'Episode One',
-    heading: 'Origin Story',
-    body: 'The origin story of us begins here, with an unexpected plot twist.',
-    caption: 'To be continued...',
+    coverTitle: 'vibeCoverComicIllustrated',
+    heading: 'vibeHeadingComicIllustrated',
+    body: 'vibeBodyComicIllustrated',
+    caption: 'vibeCaptionComicIllustrated',
   },
   cinematic_poetic: {
-    coverTitle: 'Act I: The Meeting',
-    heading: 'Golden Hour',
-    body: 'In the golden hour light, two paths converged and the world rewrote itself.',
-    caption: 'Scene 1 of forever',
+    coverTitle: 'vibeCoverCinematicPoetic',
+    heading: 'vibeHeadingCinematicPoetic',
+    body: 'vibeBodyCinematicPoetic',
+    caption: 'vibeCaptionCinematicPoetic',
   },
   minimal_luxury: {
-    coverTitle: 'Beginnings',
-    heading: 'Chapter One',
-    body: 'A quiet start to an extraordinary story.',
-    caption: 'Simply us',
+    coverTitle: 'vibeCoverMinimalLuxury',
+    heading: 'vibeHeadingMinimalLuxury',
+    body: 'vibeBodyMinimalLuxury',
+    caption: 'vibeCaptionMinimalLuxury',
   },
 };
 
-const DEFAULT_COPY = VIBE_COPY.romantic_warm;
+const DEFAULT_COPY_KEYS = VIBE_COPY_KEYS.romantic_warm;
 
 // ── Photo (real or sample) renderer ─────────────────────────────────────
 function PhotoSlot({ src, cssFilter, className = '' }) {
@@ -70,9 +71,10 @@ function PhotoSlot({ src, cssFilter, className = '' }) {
 }
 
 // ── Cover page ──────────────────────────────────────────────────────────
-function CoverPage({ style, cssFilter, photo, aspect, copy, partnerTitle, anniversaryOn }) {
+function CoverPage({ style, cssFilter, photo, aspect, aspectStyle, copy, partnerTitle, anniversaryOn }) {
+  const { t } = useTranslation('wizard');
   return (
-    <div className={`${aspect} w-full ${style.pageBg} overflow-hidden border ${style.pageBorder} relative ${style.pageTexture} rounded-l-lg`}>
+    <div className={`${aspect} w-full ${style.pageBg} overflow-hidden border ${style.pageBorder} relative ${style.pageTexture} rounded-l-lg`} style={aspectStyle}>
       <PageBgPattern bgPattern={style.bgPattern} />
       {style.cornerOrnament && (
         <PageOrnaments templateType={style.cornerOrnament} stroke={style.ornamentStroke} fill={style.ornamentFill} />
@@ -96,7 +98,7 @@ function CoverPage({ style, cssFilter, photo, aspect, copy, partnerTitle, annive
         {anniversaryOn && (
           <p className={`${style.accent} text-[7px] mt-1 font-medium opacity-90`}>
             <Sparkles className="w-2.5 h-2.5 inline-block mr-0.5 -mt-px" />
-            Celebrating Our Anniversary
+            {t('celebratingOurAnniversary')}
           </p>
         )}
       </div>
@@ -105,11 +107,11 @@ function CoverPage({ style, cssFilter, photo, aspect, copy, partnerTitle, annive
 }
 
 // ── Interior content page ───────────────────────────────────────────────
-function InteriorPage({ style, cssFilter, photo, aspect, copy, isSpreadRight }) {
+function InteriorPage({ style, cssFilter, photo, aspect, aspectStyle, copy, isSpreadRight }) {
   const roundingClass = isSpreadRight ? 'rounded-r-lg' : 'rounded-lg';
 
   return (
-    <div className={`${aspect} w-full ${style.pageBg} overflow-hidden border ${style.pageBorder} relative ${style.pageTexture} ${roundingClass}`}>
+    <div className={`${aspect} w-full ${style.pageBg} overflow-hidden border ${style.pageBorder} relative ${style.pageTexture} ${roundingClass}`} style={aspectStyle}>
       <PageBgPattern bgPattern={style.bgPattern} />
       {style.cornerOrnament && (
         <PageOrnaments templateType={style.cornerOrnament} stroke={style.ornamentStroke} fill={style.ornamentFill} />
@@ -141,6 +143,7 @@ function InteriorPage({ style, cssFilter, photo, aspect, copy, isSpreadRight }) 
 
 // ── Love Letter mini preview ────────────────────────────────────────────
 function LoveLetterPreview({ style }) {
+  const { t } = useTranslation('wizard');
   return (
     <div className={`${style.pageBg} rounded-lg border ${style.pageBorder} relative ${style.pageTexture} overflow-hidden p-3`}>
       <PageBgPattern bgPattern={style.bgPattern} />
@@ -150,7 +153,7 @@ function LoveLetterPreview({ style }) {
         </div>
       )}
       <div className="relative z-20 flex flex-col items-center">
-        <h4 className={`${style.heading} text-[9px] font-bold mb-1`}>A Letter For You</h4>
+        <h4 className={`${style.heading} text-[9px] font-bold mb-1`}>{t('aLetterForYou')}</h4>
         <div className={`${style.divider} mb-2 !w-10`} />
         {/* Faux text lines */}
         <div className="w-full space-y-1">
@@ -173,6 +176,7 @@ function LoveLetterPreview({ style }) {
 
 // ── Anniversary Cover mini preview ──────────────────────────────────────
 function AnniversaryCoverPreview({ style, cssFilter, photo, copy, partnerTitle }) {
+  const { t } = useTranslation('wizard');
   return (
     <div className={`aspect-[3/4] w-full ${style.pageBg} rounded-lg overflow-hidden border ${style.pageBorder} relative ${style.pageTexture}`}>
       <PageBgPattern bgPattern={style.bgPattern} />
@@ -190,7 +194,7 @@ function AnniversaryCoverPreview({ style, cssFilter, photo, copy, partnerTitle }
         <p className={`${style.caption} text-[6px]`}>{copy.caption}</p>
         <div className={`mt-1 flex items-center gap-0.5 ${style.accent} text-[7px] font-semibold`}>
           <Sparkles className="w-2.5 h-2.5" />
-          <span>Celebrating Our Anniversary</span>
+          <span>{t('celebratingOurAnniversary')}</span>
         </div>
       </div>
     </div>
@@ -199,10 +203,11 @@ function AnniversaryCoverPreview({ style, cssFilter, photo, copy, partnerTitle }
 
 // ── Mini Reel storyboard preview ────────────────────────────────────────
 function MiniReelPreview() {
-  const frames = ['The couple meets', 'First adventure', 'A promise made'];
+  const { t } = useTranslation('wizard');
+  const frameKeys = ['miniReelFrameCoupleMeets', 'miniReelFrameFirstAdventure', 'miniReelFramePromiseMade'];
   return (
     <div className="flex gap-1.5 overflow-hidden relative">
-      {frames.map((text, idx) => (
+      {frameKeys.map((key, idx) => (
         <div key={idx} className="flex-shrink-0 w-[72px] rounded-md border border-gray-700 bg-gray-900/80 overflow-hidden">
           {/* Film header */}
           <div className="flex items-center justify-between px-1.5 py-0.5 bg-gray-800/90 border-b border-gray-700">
@@ -220,7 +225,7 @@ function MiniReelPreview() {
           </div>
           {/* Frame text */}
           <div className="p-1.5">
-            <p className="text-[6px] text-gray-400 leading-tight">{text}</p>
+            <p className="text-[6px] text-gray-400 leading-tight">{t(key)}</p>
           </div>
         </div>
       ))}
@@ -269,9 +274,11 @@ function AddonPreviewCard({ icon: Icon, label, color, children }) {
 // ── MAIN COMPONENT ──────────────────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════════════════
 export default function LiveBookPreview() {
+  const { t } = useTranslation('wizard');
   const selectedTemplate = useBookStore(s => s.selectedTemplate);
   const imageLook = useBookStore(s => s.imageLook);
   const pageSize = useBookStore(s => s.designScale).pageSize;
+  const customPageSize = useBookStore(s => s.customPageSize);
   const images = useBookStore(s => s.images);
   const vibe = useBookStore(s => s.vibe);
   const partnerNames = useBookStore(s => s.partnerNames);
@@ -283,8 +290,9 @@ export default function LiveBookPreview() {
   // Derive preview data
   const style = TEMPLATE_STYLES[selectedTemplate] || TEMPLATE_STYLES.romantic;
   const cssFilter = IMAGE_LOOK_CSS_FILTERS[imageLook] || 'none';
-  const aspect = PAGE_ASPECT[pageSize] || 'aspect-[3/4]';
-  const lookLabel = IMAGE_LOOKS.find(l => l.value === imageLook)?.label || 'Natural';
+  const isCustomSize = pageSize === 'custom' && customPageSize?.width > 0 && customPageSize?.height > 0;
+  const aspect = isCustomSize ? '' : getPageAspect(pageSize);
+  const lookLabel = t(IMAGE_LOOKS.find(l => l.value === imageLook)?.i18nLabel || 'lookNatural');
 
   // Pick user photos (null = will show SamplePhoto)
   const photos = useMemo(() => {
@@ -292,23 +300,33 @@ export default function LiveBookPreview() {
     return [urls[0] || null, urls[1] || null, urls[2] || null];
   }, [images]);
 
-  // Vibe-contextual sample copy
-  const copy = useMemo(() => VIBE_COPY[vibe] || DEFAULT_COPY, [vibe]);
+  // Vibe-contextual sample copy (resolved from i18n keys)
+  const copyKeys = useMemo(() => VIBE_COPY_KEYS[vibe] || DEFAULT_COPY_KEYS, [vibe]);
+  const copy = useMemo(() => ({
+    coverTitle: t(copyKeys.coverTitle),
+    heading: t(copyKeys.heading),
+    body: t(copyKeys.body),
+    caption: t(copyKeys.caption),
+  }), [t, copyKeys]);
 
   // Partner names integration
   const partnerTitle = useMemo(() => {
-    const [a, b] = partnerNames;
-    if (a && b) return `${a} & ${b}'s Story`;
-    if (a) return `${a}'s Story`;
-    if (b) return `${b}'s Story`;
+    // Take only the first name from each comma-separated entry
+    const firstName = (entry) => entry?.split(',')[0].trim() || '';
+    const a = firstName(partnerNames[0]);
+    const b = firstName(partnerNames[1]);
+    if (a && b) return t('partnerStoryBoth', { nameA: a, nameB: b });
+    if (a) return t('partnerStorySingle', { name: a });
+    if (b) return t('partnerStorySingle', { name: b });
     return null;
-  }, [partnerNames]);
+  }, [partnerNames, t]);
 
   // Template display name
   const templateLabel = useMemo(() => {
-    const labels = { romantic: 'Romantic', vintage: 'Vintage', elegant: 'Elegant', meme_funny: 'Meme & Fun' };
-    return labels[selectedTemplate] || selectedTemplate || '---';
-  }, [selectedTemplate]);
+    const labelKeys = { romantic: 'templateRomantic', vintage: 'templateVintage', elegant: 'templateElegant', meme_funny: 'templateMemeFunny' };
+    const key = labelKeys[selectedTemplate];
+    return key ? t(key) : (selectedTemplate || '---');
+  }, [selectedTemplate, t]);
 
   // Count active extras
   const hasAnyExtras = addOns.loveLetter || addOns.anniversaryCover || addOns.miniReel;
@@ -318,7 +336,7 @@ export default function LiveBookPreview() {
     return (
       <div className="rounded-xl border border-gray-800 bg-gray-900/40 p-6 text-center">
         <BookOpen className="w-8 h-8 text-gray-700 mx-auto mb-2" />
-        <div className="text-gray-600 text-sm">Select a template to see preview</div>
+        <div className="text-gray-600 text-sm">{t('selectTemplateToSeePreview')}</div>
       </div>
     );
   }
@@ -330,7 +348,7 @@ export default function LiveBookPreview() {
         onClick={() => setCollapsed(prev => !prev)}
         className="w-full flex items-center justify-between px-4 py-3 lg:cursor-default"
       >
-        <span className="text-sm font-medium text-gray-300">Live Preview</span>
+        <span className="text-sm font-medium text-gray-300">{t('livePreview')}</span>
         <div className="flex items-center gap-2">
           <span className="text-xs text-gray-500 truncate max-w-[120px]">
             {templateLabel} &middot; {lookLabel}
@@ -364,7 +382,7 @@ export default function LiveBookPreview() {
                         : 'bg-gray-800 text-gray-400 hover:text-gray-300 hover:bg-gray-750'
                     }`}
                   >
-                    {mode === 'single' ? 'Single' : 'Spread'}
+                    {mode === 'single' ? t('single') : t('spread')}
                   </button>
                 ))}
               </div>
@@ -388,6 +406,7 @@ export default function LiveBookPreview() {
                           cssFilter={cssFilter}
                           photo={photos[0]}
                           aspect={aspect}
+                          aspectStyle={isCustomSize ? { aspectRatio: `${customPageSize.width} / ${customPageSize.height}` } : {}}
                           copy={copy}
                           partnerTitle={partnerTitle}
                           anniversaryOn={addOns.anniversaryCover}
@@ -408,6 +427,7 @@ export default function LiveBookPreview() {
                           cssFilter={cssFilter}
                           photo={photos[1]}
                           aspect={aspect}
+                          aspectStyle={isCustomSize ? { aspectRatio: `${customPageSize.width} / ${customPageSize.height}` } : {}}
                           copy={copy}
                           isSpreadRight
                         />
@@ -427,6 +447,7 @@ export default function LiveBookPreview() {
                       cssFilter={cssFilter}
                       photo={photos[2] || photos[0]}
                       aspect={aspect}
+                      aspectStyle={isCustomSize ? { aspectRatio: `${customPageSize.width} / ${customPageSize.height}` } : {}}
                       copy={copy}
                       isSpreadRight={false}
                     />
@@ -440,15 +461,15 @@ export default function LiveBookPreview() {
                   {templateLabel}
                 </span>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-800 text-gray-400">
-                  {lookLabel} photos
+                  {lookLabel} {t('photos')}
                 </span>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-800 text-gray-400">
-                  {pageSize === 'a4' ? 'A4' : pageSize === 'us_letter' ? 'US Letter' : 'Square'}
+                  {t(PAGE_SIZES.find(s => s.value === pageSize)?.i18nLabel || 'pageSizeA4')}
                 </span>
                 {images.length === 0 && (
                   <span className="text-[10px] px-2 py-0.5 rounded-full bg-violet-900/30 text-violet-400 border border-violet-800/40">
                     <ImageIcon className="w-2.5 h-2.5 inline-block mr-0.5 -mt-px" />
-                    Sample photo
+                    {t('samplePhoto')}
                   </span>
                 )}
               </div>
@@ -465,7 +486,7 @@ export default function LiveBookPreview() {
                   >
                     <div className="mt-4 pt-3 border-t border-gray-800/60">
                       <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider block mb-2">
-                        Your Extras
+                        {t('yourExtras')}
                       </span>
                       <div className="space-y-2.5">
                         {/* Love Letter */}
@@ -473,7 +494,7 @@ export default function LiveBookPreview() {
                           {addOns.loveLetter && (
                             <AddonPreviewCard
                               icon={Heart}
-                              label="Love Letter Insert"
+                              label={t('loveLetterInsertLabel')}
                               color="text-rose-400"
                             >
                               <LoveLetterPreview style={style} />
@@ -486,7 +507,7 @@ export default function LiveBookPreview() {
                           {addOns.anniversaryCover && (
                             <AddonPreviewCard
                               icon={Award}
-                              label="Anniversary Edition Cover"
+                              label={t('anniversaryEditionCoverLabel')}
                               color="text-amber-400"
                             >
                               <div className="w-24 mx-auto">
@@ -507,7 +528,7 @@ export default function LiveBookPreview() {
                           {addOns.miniReel && (
                             <AddonPreviewCard
                               icon={FilmIcon}
-                              label="Mini Reel Storyboard"
+                              label={t('miniReelStoryboardLabel')}
                               color="text-violet-400"
                             >
                               <MiniReelPreview />

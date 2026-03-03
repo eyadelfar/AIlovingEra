@@ -1,6 +1,8 @@
+import { useTranslation } from 'react-i18next';
 import { useVoiceRecorder } from '../../hooks/useVoiceRecorder';
 
 export default function VoiceRecorder({ onTranscribed, disabled }) {
+  const { t } = useTranslation();
   const { isRecording, isTranscribing, error, startRecording, stopRecording } =
     useVoiceRecorder({ onTranscribed });
 
@@ -10,14 +12,14 @@ export default function VoiceRecorder({ onTranscribed, disabled }) {
   }
 
   return (
-    <div className="flex flex-col items-center gap-1">
+    <div className="inline-flex flex-col items-center gap-1">
       <button
         type="button"
         onClick={handleClick}
         disabled={disabled || isTranscribing}
-        title={isRecording ? 'Stop recording' : 'Record voice description'}
+        title={isRecording ? t('stopRecording') : t('recordVoiceDescription')}
         className={`
-          relative w-11 h-11 rounded-full flex items-center justify-center transition-all
+          relative w-11 h-11 rounded-full inline-flex items-center justify-center transition-all
           focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 focus:ring-offset-gray-900
           disabled:opacity-40 disabled:cursor-not-allowed
           ${isRecording
@@ -41,7 +43,7 @@ export default function VoiceRecorder({ onTranscribed, disabled }) {
         )}
       </button>
       {error && (
-        <p className="text-xs text-red-400 max-w-full text-center">{error}</p>
+        <p className="text-xs text-red-400 max-w-[120px] text-center">{error}</p>
       )}
     </div>
   );

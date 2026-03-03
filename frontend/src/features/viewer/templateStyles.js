@@ -1,20 +1,52 @@
-// ── Template photo filters ──────────────────────────────────────────────
+export function buildCustomStyle(ct) {
+  if (!ct) return TEMPLATE_STYLES.romantic;
+  const frameStyles = {
+    rounded: 'border-2 rounded-lg shadow-lg',
+    square: 'border-2 shadow-lg',
+    none: 'shadow-md',
+  };
+  const frame = frameStyles[ct.photoFrameStyle] || frameStyles.rounded;
+  return {
+    pageBg: '',
+    pageBgInline: ct.pageBgColor,
+    pageBorder: 'border-gray-700/40',
+    heading: '',
+    headingLg: '',
+    body: '',
+    caption: '',
+    accent: '',
+    photoFrame: `${frame} border-gray-500/20`,
+    photoFrameAlt: `${frame} border-gray-500/15`,
+    photoFrameHero: `${frame} border-gray-500/20`,
+    pageTexture: '',
+    divider: 'w-16 h-px bg-gray-500/40 mx-auto',
+    dividerWide: 'w-full h-px bg-gray-500/20',
+    quoteMark: 'text-4xl font-serif leading-none opacity-30',
+    quoteText: 'italic text-base leading-relaxed',
+    coverOverlay: 'bg-gradient-to-t from-black/70 via-black/30 to-transparent',
+    innerPadding: 'p-6',
+    photoGap: 'gap-2.5',
+    ornamentStroke: `${ct.accentColor}40`,
+    ornamentFill: `${ct.accentColor}15`,
+    ornamentBorder: 'border-gray-500/10',
+    cornerOrnament: null,
+    bgPattern: null,
+    // Custom color overrides applied via inline styles
+    _headingColor: ct.headingColor,
+    _bodyColor: ct.bodyColor,
+    _accentColor: ct.accentColor,
+  };
+}
+
 export const TEMPLATE_PHOTO_FILTERS = {
   vintage: 'sepia(0.4) contrast(1.1) saturate(0.75) brightness(0.95)',
   romantic: 'saturate(1.25) brightness(1.08) contrast(0.9) hue-rotate(-5deg)',
   elegant: 'grayscale(0.3) contrast(1.15) brightness(0.95)',
   meme_funny: 'saturate(1.4) contrast(1.15) brightness(1.05)',
+  cinematic: 'contrast(1.25) saturate(0.85) brightness(0.9)',
+  minimal: 'contrast(1.08) saturate(0.8)',
 };
 
-// ── Per-template photo blend modes ──────────────────────────────────────
-export const TEMPLATE_BLEND_CONFIG = {
-  vintage: { blendMode: 'multiply', overlayColor: 'rgba(180, 120, 60, 0.15)' },
-  romantic: { blendMode: 'soft-light', overlayColor: 'rgba(244, 63, 94, 0.1)' },
-  elegant: { blendMode: 'luminosity', overlayColor: null },
-  meme_funny: { blendMode: null, overlayColor: null },
-};
-
-// ── Per-template design system ──────────────────────────────────────────
 export const TEMPLATE_STYLES = {
   vintage: {
     pageBg: 'bg-gradient-to-br from-amber-950/40 via-yellow-950/20 to-amber-950/30',
@@ -24,7 +56,6 @@ export const TEMPLATE_STYLES = {
     body: 'text-amber-200 font-serif drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]',
     caption: 'text-amber-300/70 italic font-serif drop-shadow-[0_1px_1px_rgba(0,0,0,0.4)]',
     accent: 'text-amber-200',
-    // Vintage: polaroid-style frames with subtle rotation
     photoFrame: 'bg-amber-50/10 p-1.5 shadow-lg shadow-amber-950/40 border border-amber-700/30',
     photoFrameAlt: 'bg-amber-50/10 p-1.5 shadow-lg shadow-amber-950/40 border border-amber-700/30',
     photoFrameHero: 'bg-amber-50/10 p-2 shadow-xl shadow-amber-950/50 border border-amber-700/30',
@@ -114,6 +145,56 @@ export const TEMPLATE_STYLES = {
     ornamentStroke: 'rgba(250, 200, 50, 0.2)',
     ornamentFill: 'rgba(250, 200, 50, 0.06)',
     ornamentBorder: 'border-amber-400/10',
+    cornerOrnament: null,
+    bgPattern: null,
+  },
+  cinematic: {
+    pageBg: 'bg-gradient-to-br from-slate-950/70 via-indigo-950/40 to-slate-950/60',
+    pageBorder: 'border-amber-500/20',
+    heading: 'text-amber-200/90 tracking-[0.15em] font-light',
+    headingLg: 'text-amber-200/90 tracking-[0.1em] font-light text-lg',
+    body: 'text-slate-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]',
+    caption: 'text-amber-300/50 italic tracking-wide drop-shadow-[0_1px_1px_rgba(0,0,0,0.4)]',
+    accent: 'text-amber-300/80',
+    photoFrame: 'border border-amber-500/15 shadow-xl shadow-black/50',
+    photoFrameAlt: 'border border-amber-500/10 shadow-xl shadow-black/50',
+    photoFrameHero: 'border border-amber-500/20 shadow-2xl shadow-black/60',
+    pageTexture: 'before:absolute before:inset-0 before:bg-[radial-gradient(ellipse_at_50%_30%,rgba(232,197,71,0.04),transparent_60%)]',
+    divider: 'w-20 h-px bg-gradient-to-r from-transparent via-amber-500/30 to-transparent mx-auto',
+    dividerWide: 'w-full h-px bg-gradient-to-r from-transparent via-amber-500/15 to-transparent',
+    quoteMark: 'text-amber-500/25 text-5xl font-serif leading-none',
+    quoteText: 'text-slate-200 italic text-base leading-relaxed tracking-wide font-light',
+    coverOverlay: 'bg-gradient-to-t from-black/85 via-slate-950/40 to-transparent',
+    innerPadding: 'p-8',
+    photoGap: 'gap-2',
+    ornamentStroke: 'rgba(232, 197, 71, 0.2)',
+    ornamentFill: 'rgba(232, 197, 71, 0.05)',
+    ornamentBorder: 'border-amber-500/8',
+    cornerOrnament: 'elegant',
+    bgPattern: 'radial-gradient(circle at 30% 70%, rgba(232,197,71,0.02) 0%, transparent 40%), radial-gradient(circle at 70% 30%, rgba(232,197,71,0.02) 0%, transparent 40%)',
+  },
+  minimal: {
+    pageBg: 'bg-gradient-to-br from-stone-100/80 via-stone-50/60 to-stone-100/70',
+    pageBorder: 'border-stone-300/30',
+    heading: 'text-stone-800 tracking-[0.2em] uppercase text-xs font-light',
+    headingLg: 'text-stone-800 tracking-[0.15em] uppercase text-sm font-light',
+    body: 'text-stone-600 drop-shadow-[0_1px_1px_rgba(255,255,255,0.3)]',
+    caption: 'text-stone-500/70 tracking-wide font-light',
+    accent: 'text-stone-700',
+    photoFrame: 'border border-stone-300/30 shadow-sm',
+    photoFrameAlt: 'border border-stone-300/20 shadow-sm',
+    photoFrameHero: 'border border-stone-300/30 shadow-md',
+    pageTexture: '',
+    divider: 'w-8 h-px bg-stone-400/40 mx-auto',
+    dividerWide: 'w-full h-px bg-stone-300/20',
+    quoteMark: 'text-stone-400/25 text-3xl font-serif leading-none',
+    quoteText: 'text-stone-700 text-base leading-relaxed tracking-wide font-light',
+    coverOverlay: 'bg-gradient-to-t from-white/70 via-white/30 to-transparent',
+    innerPadding: 'p-10',
+    photoGap: 'gap-3',
+    ornamentStroke: 'rgba(120, 113, 108, 0.15)',
+    ornamentFill: 'rgba(120, 113, 108, 0.03)',
+    ornamentBorder: 'border-stone-400/8',
     cornerOrnament: null,
     bgPattern: null,
   },

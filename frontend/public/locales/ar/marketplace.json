@@ -1,0 +1,52 @@
+{
+  "designMarketplace": "متجر التصاميم",
+  "marketplaceSubtitle": "تصفح القوالب والأغلفة وحزم التخطيطات المميزة لجعل كتاب ذكرياتك فريدًا.",
+
+  "categoryAll": "الكل",
+  "categoryThemes": "القوالب",
+  "categoryCovers": "الأغلفة",
+  "categoryLayoutPacks": "حزم التخطيطات",
+
+  "searchDesigns": "ابحث عن تصاميم...",
+  "freeOnly": "المجانية فقط",
+
+  "free": "مجاني",
+  "featured": "مميز",
+
+  "noDesignsFound": "لم يتم العثور على تصاميم. حاول تعديل عوامل التصفية.",
+
+  "previous": "السابق",
+  "next": "التالي",
+  "pageOf": "صفحة {{current}} من {{total}}",
+
+  "applyToBook": "تطبيق على الكتاب",
+  "purchasing": "جاري الشراء...",
+  "purchaseWithPrice": "شراء — ${{price}}",
+  "purchaseFailed": "فشل الشراء",
+
+  "submitDesign": "إرسال تصميم",
+  "designName": "اسم التصميم",
+  "designDescription": "وصف التصميم",
+  "designCategory": "الفئة",
+  "designSubcategory": "الفئة الفرعية",
+  "designTags": "الوسوم",
+  "designPrice": "السعر",
+  "designThumbnail": "الصورة المصغرة",
+  "designPreviewImage": "صورة المعاينة",
+  "designConfig": "إعدادات التصميم",
+  "submitForReview": "إرسال للمراجعة",
+  "submitting": "جاري الإرسال...",
+  "designSubmitted": "تم إرسال التصميم للمراجعة!",
+  "designSubmitError": "فشل إرسال التصميم",
+
+  "designerName": "اسم المصمم",
+  "designerBio": "نبذة عن المصمم",
+  "designerPortfolio": "رابط معرض الأعمال",
+
+  "sortByNewest": "الأحدث",
+  "sortByPopular": "الأكثر شيوعًا",
+  "sortByPrice": "السعر",
+
+  "downloads": "{{count}} تحميل",
+  "rating": "تقييم {{score}}"
+}

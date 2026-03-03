@@ -28,11 +28,11 @@ export default function CollagePlusLetter({ page, photos, photoIndices, style, p
       <div className={`flex flex-col justify-center p-6 overflow-hidden relative z-20`}>
         {page.heading_text && (
           <>
-            <h3 className={`font-semibold ${style.headingLg} mb-2`}>{page.heading_text}</h3>
+            <h3 data-ts="heading" className={`font-semibold ${style.headingLg} mb-2`}>{page.heading_text}</h3>
             <Divider className={`${style.dividerWide} my-3`} />
           </>
         )}
-        {page.body_text && <p className={`${style.body} text-xs leading-relaxed mt-1`}>{page.body_text}</p>}
+        {page.body_text && <p data-ts="body" className={`${style.body} text-xs leading-relaxed mt-1`}>{page.body_text}</p>}
       </div>
     </PageShell>
   );

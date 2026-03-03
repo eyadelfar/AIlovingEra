@@ -1,8 +1,12 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { motion, useScroll, useTransform } from 'framer-motion';
+import ImportBookModal from '../shared/ImportBookModal';
 
 export default function HeroSection() {
+  const { t } = useTranslation();
+  const [showImport, setShowImport] = useState(false);
   const sectionRef = useRef(null);
   const { scrollYProgress } = useScroll({
     target: sectionRef,
@@ -25,19 +29,18 @@ export default function HeroSection() {
           transition={{ duration: 0.8 }}
         >
           <span className="inline-block mb-6 px-4 py-1.5 rounded-full text-sm font-medium bg-rose-500/10 text-rose-300 border border-rose-500/20">
-            AI-Powered Memory Books
+            {t('aiPoweredMemoryBooks')}
           </span>
 
           <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold leading-tight mb-6">
-            Turn Your Photos Into{' '}
+            {t('heroTitle')}{' '}
             <span className="bg-gradient-to-r from-rose-400 via-pink-400 to-violet-400 bg-clip-text text-transparent">
-              Beautiful Stories
+              {t('heroTitleHighlight')}
             </span>
           </h1>
 
           <p className="text-lg sm:text-xl text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed">
-            Upload your favorite moments, and our AI crafts a personalized memory book
-            with warm narratives, beautiful layouts, and emotional storytelling.
+            {t('heroDescription')}
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -45,15 +48,22 @@ export default function HeroSection() {
               to="/create"
               className="w-full sm:w-auto bg-gradient-to-r from-rose-500 to-violet-600 text-white px-8 py-4 rounded-xl text-lg font-semibold hover:from-rose-600 hover:to-violet-700 transition-all shadow-lg shadow-rose-900/30"
             >
-              Create Your Memory Book
+              {t('createYourMemoryBook')}
             </Link>
             <a
               href="#how-it-works"
               className="w-full sm:w-auto text-gray-400 hover:text-white px-8 py-4 rounded-xl text-lg font-medium border border-gray-700 hover:border-gray-500 transition-all"
             >
-              See How It Works
+              {t('seeHowItWorks')}
             </a>
           </div>
+          <button
+            onClick={() => setShowImport(true)}
+            className="text-sm text-gray-500 hover:text-gray-300 underline underline-offset-4 transition-colors mt-4"
+          >
+            {t('orImportSavedBook')}
+          </button>
+          {showImport && <ImportBookModal onClose={() => setShowImport(false)} />}
         </motion.div>
 
         {/* Sample book preview with parallax */}
@@ -68,8 +78,8 @@ export default function HeroSection() {
             <div className="aspect-[3/4] bg-gradient-to-br from-rose-900/30 to-violet-900/30 rounded-xl flex items-center justify-center border border-gray-700/30">
               <div className="text-center px-8">
                 <p className="text-3xl mb-2">&#10084;&#65039;</p>
-                <p className="text-xl font-serif text-rose-200 italic">&ldquo;Our Story&rdquo;</p>
-                <p className="text-sm text-gray-400 mt-2">A memory book crafted by AI</p>
+                <p className="text-xl font-serif text-rose-200 italic">&ldquo;{t('ourStory')}&rdquo;</p>
+                <p className="text-sm text-gray-400 mt-2">{t('memoryBookCraftedByAi')}</p>
               </div>
             </div>
           </div>

@@ -1,11 +1,10 @@
-import logging
-
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+import structlog
+from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, File
 
 from app.dependencies import get_stt_service
 from app.interfaces.stt_service import AbstractSTTService
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 MAX_AUDIO_SIZE = 25 * 1024 * 1024  # 25 MB
 ALLOWED_AUDIO_TYPES = {
@@ -24,6 +23,7 @@ async def stt_health():
 @router.post("/transcribe")
 async def transcribe_audio(
     audio: UploadFile = File(...),
+    language: str | None = Form(None),
     stt: AbstractSTTService = Depends(get_stt_service),
 ):
     ct = (audio.content_type or "").lower()
@@ -32,13 +32,15 @@ async def transcribe_audio(
         raise HTTPException(status_code=422, detail=f"Unsupported audio type '{ct_base}'.")
 
     audio_bytes = await audio.read()
+    if len(audio_bytes) == 0:
+        raise HTTPException(status_code=422, detail="Audio file is empty.")
     if len(audio_bytes) > MAX_AUDIO_SIZE:
         raise HTTPException(status_code=422, detail="Audio file exceeds 25 MB size limit.")
 
     try:
-        text = await stt.transcribe(audio_bytes, mime_type=ct or "audio/webm")
-    except Exception as exc:
-        logger.error("Transcription failed: %s", exc)
-        raise HTTPException(status_code=500, detail="Transcription failed. Please try again.") from exc
+        text = await stt.transcribe(audio_bytes, mime_type=ct or "audio/webm", language=language)
+    except Exception:
+        logger.error("transcription_failed", exc_info=True)
+        raise HTTPException(status_code=500, detail="Transcription failed. Please try again.")
 
     return {"text": text}

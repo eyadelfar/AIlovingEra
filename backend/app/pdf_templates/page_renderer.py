@@ -53,15 +53,57 @@ def _photo_img(
     photo_filter: str,
     obj_pos: str = "",
     extra_class: str = "",
+    slot_key: str = "",
+    overrides: dict | None = None,
 ) -> str:
     """Render a single photo <img> inside a frame div — mirrors frontend PhotoImg."""
     style_parts = []
-    if photo_filter:
+    div_style_parts = []
+
+    # Apply crop overrides (zoom + pan)
+    crop = (overrides or {}).get("crop", {}).get(slot_key) if slot_key else None
+    if crop:
+        zoom = crop.get("zoom", 1)
+        panX = crop.get("panX", 0)
+        panY = crop.get("panY", 0)
+        style_parts.append(f"transform: scale({zoom}) translate({panX}%, {panY}%); transform-origin: center;")
+
+    # Apply filter overrides (CSS filter string from frontend)
+    filter_override = (overrides or {}).get("filter", {}).get(slot_key) if slot_key else None
+    if filter_override:
+        # Build CSS filter from override object
+        parts = []
+        if filter_override.get("brightness") is not None:
+            parts.append(f"brightness({filter_override['brightness']})")
+        if filter_override.get("contrast") is not None:
+            parts.append(f"contrast({filter_override['contrast']})")
+        if filter_override.get("saturation") is not None:
+            parts.append(f"saturate({filter_override['saturation']})")
+        if filter_override.get("warmth") is not None:
+            parts.append(f"sepia({filter_override['warmth']})")
+        if parts:
+            style_parts.append(f"filter: {' '.join(parts)};")
+    elif photo_filter:
         style_parts.append(f"filter: {photo_filter};")
+
     if obj_pos:
         style_parts.append(obj_pos)
+
+    # Apply position offsets
+    pos = (overrides or {}).get("position", {}).get(slot_key) if slot_key else None
+    if pos:
+        div_style_parts.append(f"transform: translate({pos.get('x', 0)}px, {pos.get('y', 0)}px);")
+
+    # Apply size overrides
+    size = (overrides or {}).get("size", {}).get(slot_key) if slot_key else None
+    if size:
+        div_style_parts.append(f"width: {size.get('width', 'auto')}px; height: {size.get('height', 'auto')}px;")
+
     img_style = " ".join(style_parts)
-    return f'''<div class="overflow-hidden {frame_class} relative {extra_class}">
+    div_style = " ".join(div_style_parts)
+    div_style_attr = f' style="{div_style}"' if div_style else ""
+
+    return f'''<div class="overflow-hidden {frame_class} relative {extra_class}"{div_style_attr}>
   <img src="{src}" alt="" class="w-full h-full object-cover" style="{img_style}" />
 </div>'''
 
@@ -200,12 +242,17 @@ def render_page(
     photo_data: dict[int, str],
     template_slug: str,
     photo_analyses: list[dict] | None = None,
+    overrides: dict | None = None,
 ) -> str:
     """Render a single page to HTML. Main dispatch function."""
     style = TEMPLATE_STYLES.get(template_slug, TEMPLATE_STYLES["romantic"])
     pf = TEMPLATE_PHOTO_FILTERS.get(template_slug, "")
     layout = getattr(page, "layout_type", "HERO_FULLBLEED") or "HERO_FULLBLEED"
     indices = getattr(page, "photo_indices", []) or []
+
+    # Determine chapter/spread indices for override key resolution
+    ch_idx = getattr(page, "_chapter_idx", None)
+    sp_idx = getattr(page, "_spread_idx", None)
 
     def P(i: int) -> tuple[str, str, str]:
         """Returns (src, frame_class, obj_pos_style) for photo at slot i."""
@@ -224,7 +271,8 @@ def render_page(
             return ""
         frame = style["photoFrameHero"] if hero else (style["photoFrameAlt"] if alt else style["photoFrame"])
         pos = _obj_position(idx, photo_analyses)
-        return _photo_img(src, frame, pf, pos, extra)
+        slot_key = f"{ch_idx}-{sp_idx}-{i}" if ch_idx is not None and sp_idx is not None else ""
+        return _photo_img(src, frame, pf, pos, extra, slot_key, overrides)
 
     photos_available = sum(1 for idx in indices if _photo_src(photo_data, idx))
 
