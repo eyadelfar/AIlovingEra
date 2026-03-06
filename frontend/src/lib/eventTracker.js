@@ -102,7 +102,6 @@ export function trackEvent(eventType, category, payload = {}) {
 if (typeof window !== 'undefined') {
   window.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden' && _buffer.length > 0) {
-      const token = getAuthToken();
       const headers = { type: 'application/json' };
       const body = JSON.stringify({ events: _buffer });
       _buffer = [];

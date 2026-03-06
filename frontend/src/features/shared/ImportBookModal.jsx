@@ -6,10 +6,11 @@ import BaseModal from './BaseModal';
 import LoadingSpinner from './LoadingSpinner';
 import useBookStore from '../../stores/bookStore';
 import { validateExport, deserializeImages, buildHydratePayload } from '../../lib/bookImport';
+import { extractBookData } from '../../lib/bookContainerIO';
 
 export default function ImportBookModal({ onClose }) {
   const { t } = useTranslation();
-  const [phase, setPhase] = useState('idle'); // idle | processing | error
+  const [phase, setPhase] = useState('idle'); // idle | extracting | processing | error
   const [error, setError] = useState('');
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [isDragOver, setIsDragOver] = useState(false);
@@ -26,16 +27,35 @@ export default function ImportBookModal({ onClose }) {
       if (!ok) return;
     }
 
-    setPhase('processing');
     setError('');
 
     try {
-      const text = await file.text();
+      const ext = (file.name || '').split('.').pop()?.toLowerCase();
+      const isJson = ext === 'json' || file.type === 'application/json';
+
       let data;
-      try {
-        data = JSON.parse(text);
-      } catch {
-        throw new Error(t('invalidJsonFile'));
+      if (isJson) {
+        setPhase('processing');
+        // Direct JSON file
+        const text = await file.text();
+        try {
+          data = JSON.parse(text);
+        } catch {
+          throw new Error(t('invalidJsonFile'));
+        }
+      } else {
+        // Video/PDF — extract embedded book data
+        setPhase('extracting');
+        const jsonString = await extractBookData(file);
+        if (!jsonString) {
+          throw new Error(t('viewer:noBookDataFound') || 'No embedded book data found in this file');
+        }
+        try {
+          data = JSON.parse(jsonString);
+        } catch {
+          throw new Error(t('viewer:corruptBookData') || 'Embedded book data is corrupted');
+        }
+        setPhase('processing');
       }
 
       const validation = validateExport(data);
@@ -94,8 +114,8 @@ export default function ImportBookModal({ onClose }) {
     setProgress({ current: 0, total: 0 });
   }
 
-  // Don't allow closing during processing
-  const handleClose = phase === 'processing' ? () => {} : onClose;
+  // Don't allow closing during processing/extracting
+  const handleClose = (phase === 'processing' || phase === 'extracting') ? () => {} : onClose;
 
   return (
     <BaseModal title={t('importBook')} onClose={handleClose} size="md">
@@ -116,13 +136,21 @@ export default function ImportBookModal({ onClose }) {
           </svg>
           <p className="text-gray-300 font-medium mb-1">{t('dropFileHere')}</p>
           <p className="text-gray-500 text-sm">{t('orClickToBrowse')}</p>
+          <p className="text-gray-600 text-xs mt-1">{t('viewer:importSupported') || '.json, .webm, .mp4, .pdf'}</p>
           <input
             ref={fileInputRef}
             type="file"
-            accept=".json,application/json"
+            accept=".json,.webm,.mp4,.pdf"
             className="hidden"
             onChange={handleFileSelect}
           />
+        </div>
+      )}
+
+      {phase === 'extracting' && (
+        <div className="py-8 text-center">
+          <LoadingSpinner size="lg" className="mx-auto mb-4 text-violet-400" />
+          <p className="text-gray-300 font-medium mb-2">{t('viewer:extractingBookData') || 'Extracting book data...'}</p>
         </div>
       )}
 

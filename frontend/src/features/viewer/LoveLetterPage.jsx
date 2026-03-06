@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { TEMPLATE_STYLES, buildCustomStyle } from './templateStyles';
 import PageShell from './PageShell';
@@ -7,13 +7,20 @@ import useBookStore from '../../stores/bookStore';
 
 const AUTOSAVE_DELAY = 1500;
 
+function autoResize(el) {
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
+
 export default function LoveLetterPage({ text, templateSlug, isEditMode, onTextChange }) {
   const { t } = useTranslation('viewer');
   const customTheme = useBookStore((s) => s.customTheme);
   const [localText, setLocalText] = useState(text || '');
   const debounceRef = useRef(null);
+  const textareaRef = useRef(null);
   const onTextChangeRef = useRef(onTextChange);
-  onTextChangeRef.current = onTextChange;
+  useEffect(() => { onTextChangeRef.current = onTextChange; });
 
   // Sync from props when external changes happen (e.g., undo)
   useEffect(() => {
@@ -31,10 +38,16 @@ export default function LoveLetterPage({ text, templateSlug, isEditMode, onTextC
   const handleChange = useCallback((e) => {
     const val = e.target.value;
     setLocalText(val);
+    autoResize(e.target);
     // Debounced autosave — saves after user pauses typing
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => flush(val), AUTOSAVE_DELAY);
   }, [flush]);
+
+  // Auto-resize textarea when text changes externally or on mount
+  useLayoutEffect(() => {
+    autoResize(textareaRef.current);
+  }, [localText, isEditMode]);
 
   if (!text && !isEditMode) return null;
 
@@ -55,11 +68,13 @@ export default function LoveLetterPage({ text, templateSlug, isEditMode, onTextC
           {/* Letter body */}
           {isEditMode ? (
             <textarea
+              ref={textareaRef}
               value={localText}
               onChange={handleChange}
               onBlur={() => flush(localText)}
-              className={`${style.body} leading-relaxed text-sm whitespace-pre-line text-center w-full bg-transparent border border-dashed border-violet-500/30 rounded-lg p-3 focus:outline-none focus:border-violet-500/60 resize-none overflow-hidden`}
-              rows={6}
+              className={`${style.body} leading-relaxed text-sm whitespace-pre-line text-center w-full bg-transparent border border-dashed border-violet-500/30 rounded-lg p-3 focus:outline-none focus:border-violet-500/60 resize-vertical overflow-hidden`}
+              rows={3}
+              style={{ minHeight: '4.5rem' }}
               placeholder={t('writeLoveLetterPlaceholder')}
             />
           ) : (

@@ -18,7 +18,7 @@ import { PhotoImg } from '../PageShell';
 //   | +----++----++----+   |
 //   +----------------------+
 //
-export default function Wall({ page, photos, photoIndices, style, photoFilter, photoAnalyses, cropOverrides, filterOverrides, P }) {
+export default function Wall({ photos, style, P }) {
   const p = photos.slice(0, 10);
   return (
     <PageShell style={style} className={`${style.innerPadding}`}>

@@ -3,6 +3,20 @@ import { persist } from 'zustand/middleware';
 import { supabase } from '../lib/supabase';
 import i18n from '../lib/i18n';
 import { trackEvent } from '../lib/eventTracker';
+import useBookStore from './bookStore';
+
+const PERSIST_KEY = 'keepsqueak-auth';
+
+/** Remove all Supabase auth tokens from localStorage. */
+function nukeSupabaseStorage() {
+  try {
+    for (const key of Object.keys(localStorage)) {
+      if (key.startsWith('sb-') && key.includes('-auth-')) {
+        localStorage.removeItem(key);
+      }
+    }
+  } catch (_) { /* localStorage unavailable */ }
+}
 
 const useAuthStore = create(
   persist(
@@ -18,16 +32,14 @@ const useAuthStore = create(
           return;
         }
 
-        // Zustand persist may have hydrated user/session from localStorage.
-        // Show UI immediately while Supabase verifies the session in background
-        // (avoids 5+ second blank navbar due to navigator lock contention).
-        const { user: hydratedUser } = get();
-        if (hydratedUser) {
-          set({ loading: false });
-          get().fetchProfile();
-        }
+        let validated = false;
 
+        // Listen for REAL auth events (login, logout, token refresh).
+        // Skip INITIAL_SESSION — it reads unvalidated localStorage tokens.
+        // We validate via getUser() below instead.
         supabase.auth.onAuthStateChange(async (event, session) => {
+          if (event === 'INITIAL_SESSION' && !validated) return;
+
           set({ session, user: session?.user ?? null, loading: false });
           if (session?.user) {
             await get().fetchProfile();
@@ -36,12 +48,25 @@ const useAuthStore = create(
           }
         });
 
-        supabase.auth.getSession().then(({ data: { session } }) => {
-          set({ session, user: session?.user ?? null, loading: false });
-          if (session?.user) get().fetchProfile();
+        // getUser() hits the Supabase server to validate the token.
+        // getSession() only reads localStorage — it trusts expired tokens.
+        supabase.auth.getUser().then(({ data: { user }, error }) => {
+          validated = true;
+          if (error || !user) {
+            // Token invalid/expired/missing — clear everything
+            set({ user: null, session: null, profile: null, loading: false });
+            nukeSupabaseStorage();
+            try { localStorage.removeItem(PERSIST_KEY); } catch { /* localStorage unavailable */ }
+          } else {
+            // Valid session — sync
+            supabase.auth.getSession().then(({ data: { session } }) => {
+              set({ session, user: session?.user ?? user, loading: false });
+              get().fetchProfile();
+            });
+          }
         }).catch(() => {
-          // If getSession fails (lock timeout, network), still stop loading
-          set({ loading: false });
+          validated = true;
+          set({ user: null, session: null, profile: null, loading: false });
         });
       },
 
@@ -81,12 +106,26 @@ const useAuthStore = create(
         return data;
       },
 
-      signOut: async () => {
-        if (supabase) {
-          try { await supabase.auth.signOut(); }
-          catch (err) { console.warn('signOut failed, clearing local state anyway:', err.message); }
-        }
+      signOut: () => {
+        // ALL synchronous — nothing can hang or race
+
+        // 0. Clean up book store (aborts generation, clears timers, revokes blobs)
+        useBookStore.getState().reset();
+
+        // 1. Clear Zustand state (UI updates instantly)
         set({ user: null, session: null, profile: null });
+
+        // 2. Nuke Supabase's localStorage keys (sb-<ref>-auth-token)
+        nukeSupabaseStorage();
+
+        // 3. Nuke our own Zustand persist key
+        try { localStorage.removeItem(PERSIST_KEY); } catch { /* localStorage unavailable */ }
+
+        // 4. Fire-and-forget SDK cleanup (do NOT await — it can hang)
+        if (supabase) {
+          supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+        }
+
         trackEvent('signout', 'auth');
       },
 
@@ -103,17 +142,26 @@ const useAuthStore = create(
         const userId = get().user?.id;
         if (!userId) return;
 
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('display_name, avatar_url, plan, credits, books_created, language_preference, role')
-          .eq('id', userId)
-          .single();
+        // Try up to 2 times — first attempt may fail if Supabase auth isn't ready yet
+        for (let attempt = 0; attempt < 2; attempt++) {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('display_name, avatar_url, plan, credits, books_created, language_preference, role')
+            .eq('id', userId)
+            .single();
 
-        if (!error && data) {
-          set({ profile: data });
-          // Sync language preference from profile
-          if (data.language_preference && data.language_preference !== i18n.language) {
-            i18n.changeLanguage(data.language_preference);
+          if (!error && data) {
+            set({ profile: data });
+            // Sync language preference from profile
+            if (data.language_preference && data.language_preference !== i18n.language) {
+              i18n.changeLanguage(data.language_preference);
+            }
+            return;
+          }
+
+          // Retry after a short delay to let Supabase auth settle
+          if (attempt === 0) {
+            await new Promise(r => setTimeout(r, 1000));
           }
         }
       },
@@ -135,11 +183,11 @@ const useAuthStore = create(
       },
     }),
     {
-      name: 'keepsqueak-auth',
+      name: PERSIST_KEY,
       partialize: (state) => ({
-        // Only persist user/session — profile is fetched fresh
         user: state.user,
         session: state.session,
+        profile: state.profile,
       }),
     }
   )

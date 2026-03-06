@@ -15,7 +15,7 @@ import { PhotoImg, Divider } from '../PageShell';
 //   | +--++--+  |          |
 //   +-----------+----------+
 //
-export default function CollagePlusLetter({ page, photos, photoIndices, style, photoFilter, photoAnalyses, cropOverrides, filterOverrides, P }) {
+export default function CollagePlusLetter({ page, photos, style, P }) {
   return (
     <PageShell style={style} className="grid grid-cols-2">
       {/* Left: tight photo collage */}
@@ -25,7 +25,7 @@ export default function CollagePlusLetter({ page, photos, photoIndices, style, p
         ))}
       </div>
       {/* Right: longform text */}
-      <div className={`flex flex-col justify-center p-6 overflow-hidden relative z-20`}>
+      <div className={`flex flex-col justify-center p-6 overflow-hidden relative z-20 min-h-0`}>
         {page.heading_text && (
           <>
             <h3 data-ts="heading" className={`font-semibold ${style.headingLg} mb-2`}>{page.heading_text}</h3>

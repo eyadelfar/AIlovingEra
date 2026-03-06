@@ -1,8 +1,21 @@
-export default function LoadingSpinner({ size = 'md', className = '' }) {
-  const sizes = { xs: 'h-3 w-3', sm: 'h-4 w-4', md: 'h-6 w-6', lg: 'h-10 w-10' };
+type SpinnerSize = 'xs' | 'sm' | 'md' | 'lg';
+
+interface LoadingSpinnerProps {
+  size?: SpinnerSize;
+  className?: string;
+}
+
+const sizes: Record<SpinnerSize, string> = {
+  xs: 'h-3 w-3',
+  sm: 'h-4 w-4',
+  md: 'h-6 w-6',
+  lg: 'h-10 w-10',
+};
+
+export default function LoadingSpinner({ size = 'md', className = '' }: LoadingSpinnerProps) {
   return (
     <svg
-      className={`animate-spin ${sizes[size] || sizes.md} ${className}`}
+      className={`animate-spin ${sizes[size]} ${className}`}
       xmlns="http://www.w3.org/2000/svg"
       fill="none"
       viewBox="0 0 24 24"

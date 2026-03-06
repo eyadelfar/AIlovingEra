@@ -4,6 +4,10 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
+  safelist: [
+    '!text-left', '!text-center', '!text-right',
+    '!font-bold', '!italic', '!underline',
+  ],
   theme: {
     extend: {},
   },

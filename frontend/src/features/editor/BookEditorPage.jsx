@@ -9,14 +9,11 @@ export default function BookEditorPage() {
   const navigate = useNavigate();
   const bookDraft = useBookStore(s => s.bookDraft);
   const editorDraft = useBookStore(s => s.editorDraft);
-  const editorDirty = useBookStore(s => s.editorDirty);
   const initEditor = useBookStore(s => s.initEditor);
   const undo = useBookStore(s => s.undo);
   const redo = useBookStore(s => s.redo);
   const removeSpread = useBookStore(s => s.removeSpread);
   const setSelectedChapter = useBookStore(s => s.setSelectedChapter);
-  const selectedChapterIndex = useBookStore(s => s.selectedChapterIndex);
-  const selectedSpreadIndex = useBookStore(s => s.selectedSpreadIndex);
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
 

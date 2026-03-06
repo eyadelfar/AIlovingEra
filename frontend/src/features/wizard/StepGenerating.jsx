@@ -44,6 +44,10 @@ export default function StepGenerating() {
       setDesignScale: s.setDesignScale,
       imageDensity: s.imageDensity,
       setImageDensity: s.setImageDensity,
+      customPageSize: s.customPageSize,
+      setCustomPageSize: s.setCustomPageSize,
+      customDensityCount: s.customDensityCount,
+      setCustomDensityCount: s.setCustomDensityCount,
       addOns: s.addOns,
       setAddOn: s.setAddOn,
       includeQuotes: s.includeQuotes,
@@ -56,6 +60,8 @@ export default function StepGenerating() {
   const [settingsChanged, setSettingsChanged] = useState(false);
 
   const hasStarted = useRef(false);
+  const abortTimerRef = useRef(null);
+
   useEffect(() => {
     if (!bookDraft && !isGenerating && !error && !hasStarted.current) {
       hasStarted.current = true;
@@ -63,16 +69,46 @@ export default function StepGenerating() {
     }
   }, []);
 
-  // Load templates for the settings panel
+  // Abort generation if user navigates away while still in progress.
+  // Uses a short delay so React StrictMode's simulated unmount+remount
+  // clears the timer before it fires (avoiding a false abort).
   useEffect(() => {
+    if (abortTimerRef.current) {
+      clearTimeout(abortTimerRef.current);
+      abortTimerRef.current = null;
+    }
+    return () => {
+      abortTimerRef.current = setTimeout(() => {
+        if (useBookStore.getState().isGenerating) {
+          useBookStore.getState().cancelGeneration();
+        }
+      }, 50);
+    };
+  }, []);
+
+  // Load templates for the settings panel (only once)
+  const templatesLoaded = useRef(false);
+  useEffect(() => {
+    if (templatesLoaded.current) return;
+    templatesLoaded.current = true;
     fetchTemplates().then(setTemplates).catch(() => {});
   }, []);
 
+  // Navigate to viewer once generation is done.
+  // Uses a ref-based timer so React re-renders / StrictMode can't clear it.
+  const navTimerRef = useRef(null);
+  const hasNavigated = useRef(false);
   useEffect(() => {
-    if (bookDraft && !isGenerating) {
-      const timer = setTimeout(() => navigate('/book/view?edit=true', { replace: true }), 1000);
-      return () => clearTimeout(timer);
+    if (bookDraft && !isGenerating && !hasNavigated.current) {
+      if (navTimerRef.current) clearTimeout(navTimerRef.current);
+      navTimerRef.current = setTimeout(() => {
+        if (!hasNavigated.current) {
+          hasNavigated.current = true;
+          navigate('/book/view?edit=true', { replace: true });
+        }
+      }, 800);
     }
+    // No cleanup — intentionally let the timer survive unmount/remount cycles
   }, [bookDraft, isGenerating, navigate]);
 
   function handleSettingChange(setter) {
@@ -202,9 +238,6 @@ export default function StepGenerating() {
                     selectedTemplate={settings.selectedTemplate}
                     templates={templates}
                     onSelectTemplate={handleTemplateSelect}
-                    imageLook={settings.imageLook}
-                    setImageLook={handleSettingChange(settings.setImageLook)}
-                    previewPhoto={images[0]?.previewUrl}
                     compact
                   />
                 </div>
@@ -227,8 +260,12 @@ export default function StepGenerating() {
                   <BookFormatSection
                     designScale={settings.designScale}
                     setDesignScale={handleSettingChange(settings.setDesignScale)}
+                    customPageSize={settings.customPageSize}
+                    setCustomPageSize={handleSettingChange(settings.setCustomPageSize)}
                     imageDensity={settings.imageDensity}
                     setImageDensity={handleSettingChange(settings.setImageDensity)}
+                    customDensityCount={settings.customDensityCount}
+                    setCustomDensityCount={handleSettingChange(settings.setCustomDensityCount)}
                     compact
                   />
                 </div>

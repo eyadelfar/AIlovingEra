@@ -40,7 +40,7 @@ export default function AdminRevenuePage() {
     try {
       const data = await api.fetchPaymentAudit({ page: 1 });
       setAuditEntries(data.entries || []);
-    } catch {} finally { setAuditLoading(false); }
+    } catch { /* ignore */ } finally { setAuditLoading(false); }
   };
 
   const handleRefund = async () => {

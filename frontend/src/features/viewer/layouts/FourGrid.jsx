@@ -16,13 +16,13 @@ import { PhotoImg } from '../PageShell';
 //   |  heading . body text |
 //   +----------------------+
 //
-export default function FourGrid({ page, photos, photoIndices, style, photoFilter, photoAnalyses, cropOverrides, filterOverrides, P }) {
+export default function FourGrid({ page, photos, style, P }) {
   const p = photos.slice(0, 4);
   return (
     <PageShell style={style} className={`${style.innerPadding} flex flex-col`}>
       <div className="relative z-20 flex flex-col h-full">
         {/* Top: hero + 2 stacked */}
-        <div className="flex gap-2.5 overflow-hidden flex-[4.8] min-h-0">
+        <div className="flex gap-2.5 overflow-hidden flex-[4] min-h-0">
           <div className="w-[62%] h-full overflow-hidden rounded-lg">
             <PhotoImg {...P(0)} heroFrame />
           </div>
@@ -34,16 +34,19 @@ export default function FourGrid({ page, photos, photoIndices, style, photoFilte
 
         {/* Panoramic strip */}
         {p[3] && (
-          <div className="mt-2.5 overflow-hidden rounded-lg flex-[2.2] min-h-0">
+          <div className="mt-2.5 overflow-hidden rounded-lg flex-[1.8] min-h-0">
             <PhotoImg {...P(3)} altFrame className="!rounded-lg" />
           </div>
         )}
 
         {/* Text */}
-        <div className="flex-1 flex flex-col justify-center min-h-0 pt-2">
-          {page.heading_text && <h3 data-ts="heading" className={`font-semibold ${style.heading} mb-1`}>{page.heading_text}</h3>}
-          {page.body_text && <p data-ts="body" className={`${style.body} text-xs leading-relaxed line-clamp-2`}>{page.body_text}</p>}
-          {page.caption_text && <p data-ts="caption" className={`text-xs ${style.caption} mt-0.5`}>{page.caption_text}</p>}
+        <div className="flex-[1.5] flex flex-col justify-center min-h-0 pt-2 relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/15 to-transparent rounded-b-xl pointer-events-none" />
+          <div className="relative z-10">
+            {page.heading_text && <h3 data-ts="heading" className={`font-semibold ${style.heading} mb-1`}>{page.heading_text}</h3>}
+            {page.body_text && <p data-ts="body" className={`${style.body} text-xs leading-relaxed line-clamp-3`}>{page.body_text}</p>}
+            {page.caption_text && <p data-ts="caption" className={`text-xs ${style.caption} mt-0.5`}>{page.caption_text}</p>}
+          </div>
         </div>
       </div>
     </PageShell>

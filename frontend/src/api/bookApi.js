@@ -1,5 +1,25 @@
-import { apiJson, apiBlob, getAccessToken } from '../lib/api';
-import { compressImagesForAPI, compressImagesForPDF } from '../lib/imageUtils';
+import { apiJson, apiBlob, getAccessToken, forceRefreshToken } from '../lib/api';
+import { compressImagesForAPI, compressImagesForPDF, isUploadable } from '../lib/imageUtils';
+
+/**
+ * Authenticated fetch with 401 retry for streaming endpoints that bypass apiFetch.
+ * If the first attempt returns 401, refreshes the token and retries once.
+ */
+async function authFetch(url, options = {}) {
+  const token = await getAccessToken();
+  const headers = { ...options.headers, ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+  const res = await fetch(url, { ...options, headers });
+
+  if (res.status === 401) {
+    const freshToken = await forceRefreshToken();
+    if (freshToken) {
+      const retryHeaders = { ...options.headers, Authorization: `Bearer ${freshToken}` };
+      return fetch(url, { ...options, headers: retryHeaders });
+    }
+  }
+
+  return res;
+}
 
 export async function fetchTemplates() {
   return apiJson('/api/templates');
@@ -11,7 +31,7 @@ export async function generateBook({
   questionAnswers, constraints, includeQuotes, customDensityCount, customPageSize,
 }) {
   const form = new FormData();
-  images.forEach(img => form.append('images', img.file));
+  images.forEach(img => { if (isUploadable(img.file)) form.append('images', img.file); });
   form.append('template_slug', templateSlug || 'romantic');
   form.append('structure_template', structureTemplate || 'classic_timeline');
   form.append('user_story_text', userStoryText || '');
@@ -82,7 +102,7 @@ export async function generateBookStream({
   questionAnswers, constraints, includeQuotes, customDensityCount, customPageSize,
 }, onProgress, signal) {
   const form = new FormData();
-  images.forEach(img => form.append('images', img.file));
+  images.forEach(img => { if (isUploadable(img.file)) form.append('images', img.file); });
   form.append('template_slug', templateSlug || 'romantic');
   form.append('structure_template', structureTemplate || 'classic_timeline');
   form.append('user_story_text', userStoryText || '');
@@ -134,11 +154,8 @@ export async function generateBookStream({
   form.append('locale', i18n.language || 'en');
 
   const BASE = import.meta.env.VITE_API_BASE_URL ?? '';
-  const token = await getAccessToken();
-  const streamHeaders = token ? { Authorization: `Bearer ${token}` } : {};
-  const res = await fetch(`${BASE}/api/books/generate/stream`, {
+  const res = await authFetch(`${BASE}/api/books/generate/stream`, {
     method: 'POST',
-    headers: streamHeaders,
     body: form,
     signal,
   });
@@ -159,51 +176,55 @@ export async function generateBookStream({
   let finalResult = null;
   let lastEventTime = Date.now();
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
 
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split('\n');
-    buffer = lines.pop() || '';
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
 
-    for (const line of lines) {
-      // Filter SSE heartbeat comments
-      if (line.startsWith(':')) {
-        lastEventTime = Date.now();
-        continue;
-      }
-      if (!line.startsWith('data: ')) continue;
-      lastEventTime = Date.now();
-      try {
-        const event = JSON.parse(line.slice(6));
-        if (event.stage === 'complete') {
-          finalResult = event.result;
-          if (event.preview_only && finalResult) finalResult.preview_only = true;
-          onProgress?.({
-            stage: 'complete',
-            message: 'Your book is ready!',
-            progress: 100,
-            totalPages: event.result?.draft?.pages?.length,
-            generationId: event.generation_id,
-            preview_only: event.preview_only || false,
-          });
-        } else if (event.stage === 'error') {
-          const err = new Error(event.message || 'Generation failed');
-          err.generationId = event.generation_id;
-          throw err;
-        } else {
-          onProgress?.(event);
+      for (const line of lines) {
+        // Filter SSE heartbeat comments
+        if (line.startsWith(':')) {
+          lastEventTime = Date.now();
+          continue;
         }
-      } catch (e) {
-        if (e.message && e.message !== 'Generation failed') throw e;
+        if (!line.startsWith('data: ')) continue;
+        lastEventTime = Date.now();
+        try {
+          const event = JSON.parse(line.slice(6));
+          if (event.stage === 'complete') {
+            finalResult = event.result;
+            if (event.preview_only && finalResult) finalResult.preview_only = true;
+            onProgress?.({
+              stage: 'complete',
+              message: 'Your book is ready!',
+              progress: 100,
+              totalPages: event.result?.draft?.pages?.length,
+              generationId: event.generation_id,
+              preview_only: event.preview_only || false,
+            });
+          } else if (event.stage === 'error') {
+            const err = new Error(event.message || 'Generation failed');
+            err.generationId = event.generation_id;
+            throw err;
+          } else {
+            onProgress?.(event);
+          }
+        } catch (e) {
+          if (e.message && e.message !== 'Generation failed') throw e;
+        }
+      }
+
+      // Detect stale connection (no data for 45s, even heartbeats)
+      if (Date.now() - lastEventTime > 45_000) {
+        throw new Error('Connection lost — no data received. Please try again.');
       }
     }
-
-    // Detect stale connection (no data for 45s, even heartbeats)
-    if (Date.now() - lastEventTime > 45_000) {
-      throw new Error('Connection lost — no data received. Please try again.');
-    }
+  } finally {
+    reader.cancel();
   }
 
   if (!finalResult) {
@@ -271,7 +292,9 @@ function _buildSettingsBody(sessionId, settings) {
  */
 export async function uploadImages(images) {
   const form = new FormData();
-  images.forEach(img => form.append('images', img.file));
+  images.forEach(img => {
+    if (isUploadable(img.file)) form.append('images', img.file);
+  });
   return apiJson('/api/books/upload', { method: 'POST', body: form, timeout: 120_000 });
 }
 
@@ -286,11 +309,8 @@ export async function analyzeStream(sessionId, onProgress, signal) {
   form.append('session_id', sessionId);
 
   const BASE = import.meta.env.VITE_API_BASE_URL ?? '';
-  const token = await getAccessToken();
-  const streamHeaders = token ? { Authorization: `Bearer ${token}` } : {};
-  const res = await fetch(`${BASE}/api/books/analyze/stream`, {
+  const res = await authFetch(`${BASE}/api/books/analyze/stream`, {
     method: 'POST',
-    headers: streamHeaders,
     body: form,
     signal,
   });
@@ -326,13 +346,9 @@ export async function writeBookStream(sessionId, settings, onProgress, signal, p
   if (planOverride) body.plan_override = planOverride;
 
   const BASE = import.meta.env.VITE_API_BASE_URL ?? '';
-  const token = await getAccessToken();
-  const res = await fetch(`${BASE}/api/books/write/stream`, {
+  const res = await authFetch(`${BASE}/api/books/write/stream`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
     signal,
   });
@@ -361,39 +377,43 @@ async function _readSSEStream(res, onProgress) {
   let finalResult = null;
   let lastEventTime = Date.now();
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
 
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split('\n');
-    buffer = lines.pop() || '';
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
 
-    for (const line of lines) {
-      if (line.startsWith(':')) { lastEventTime = Date.now(); continue; }
-      if (!line.startsWith('data: ')) continue;
-      lastEventTime = Date.now();
-      try {
-        const event = JSON.parse(line.slice(6));
-        if (event.stage === 'complete') {
-          finalResult = event.result || event;
-          if (event.preview_only) finalResult.preview_only = true;
-          onProgress?.({ stage: 'complete', progress: 100, ...event });
-        } else if (event.stage === 'error') {
-          const err = new Error(event.message || 'Stream failed');
-          err.generationId = event.generation_id;
-          throw err;
-        } else {
-          onProgress?.(event);
+      for (const line of lines) {
+        if (line.startsWith(':')) { lastEventTime = Date.now(); continue; }
+        if (!line.startsWith('data: ')) continue;
+        lastEventTime = Date.now();
+        try {
+          const event = JSON.parse(line.slice(6));
+          if (event.stage === 'complete') {
+            finalResult = event.result || event;
+            if (event.preview_only) finalResult.preview_only = true;
+            onProgress?.({ stage: 'complete', progress: 100, ...event });
+          } else if (event.stage === 'error') {
+            const err = new Error(event.message || 'Stream failed');
+            err.generationId = event.generation_id;
+            throw err;
+          } else {
+            onProgress?.(event);
+          }
+        } catch (e) {
+          if (e.message && !e.message.includes('JSON')) throw e;
         }
-      } catch (e) {
-        if (e.message && !e.message.includes('JSON')) throw e;
+      }
+
+      if (Date.now() - lastEventTime > 45_000) {
+        throw new Error('Connection lost — no data received. Please try again.');
       }
     }
-
-    if (Date.now() - lastEventTime > 45_000) {
-      throw new Error('Connection lost — no data received. Please try again.');
-    }
+  } finally {
+    reader.cancel();
   }
 
   return finalResult;
@@ -402,7 +422,7 @@ async function _readSSEStream(res, onProgress) {
 export async function fetchAIQuestions({ images, partnerNames, relationshipType, extraCount, existingQuestions }) {
   const compressed = await compressImagesForAPI(images);
   const form = new FormData();
-  compressed.forEach(img => form.append('images', img.file));
+  compressed.forEach(img => { if (isUploadable(img.file)) form.append('images', img.file); });
   form.append('partner_names_json', JSON.stringify((partnerNames || []).map(n => n.trim()).filter(Boolean)));
   form.append('relationship_type', relationshipType || 'couple');
   if (extraCount) form.append('extra_count', String(extraCount));
@@ -413,6 +433,37 @@ export async function fetchAIQuestions({ images, partnerNames, relationshipType,
   form.append('locale', i18n.language || 'en');
 
   return apiJson('/api/books/questions', { method: 'POST', body: form, timeout: 90_000 });
+}
+
+/**
+ * SSE streaming version of fetchAIQuestions — returns real progress events.
+ * @param {{ images, partnerNames, relationshipType }} params
+ * @param {function} onProgress - called with { stage, message, progress }
+ * @returns {Promise<{ questions: Array }>} final result with questions array
+ */
+export async function fetchAIQuestionsStream({ images, partnerNames, relationshipType, questionCount }, onProgress) {
+  const compressed = await compressImagesForAPI(images);
+  const form = new FormData();
+  compressed.forEach(img => { if (isUploadable(img.file)) form.append('images', img.file); });
+  form.append('partner_names_json', JSON.stringify((partnerNames || []).map(n => n.trim()).filter(Boolean)));
+  form.append('relationship_type', relationshipType || 'couple');
+  if (questionCount) form.append('question_count', String(questionCount));
+
+  const { default: i18n } = await import('../lib/i18n');
+  form.append('locale', i18n.language || 'en');
+
+  const BASE = import.meta.env.VITE_API_BASE_URL ?? '';
+  const res = await authFetch(`${BASE}/api/books/questions/stream`, {
+    method: 'POST',
+    body: form,
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || `Question generation failed: ${res.status}`);
+  }
+
+  return _readSSEStream(res, onProgress);
 }
 
 export async function generateAIImage({ prompt, styleHint, imageLook }) {
@@ -436,7 +487,7 @@ export async function enhanceImage({ imageFile, styleHint, imageLook, vibe, cont
 export async function generateCartoon(images, style = 'chibi') {
   const compressed = await compressImagesForAPI(images.slice(0, 3));
   const form = new FormData();
-  compressed.forEach(img => form.append('images', img.file));
+  compressed.forEach(img => { if (isUploadable(img.file)) form.append('images', img.file); });
   form.append('style', style);
   return apiJson('/api/books/generate-cartoon', { method: 'POST', body: form, timeout: 90_000 });
 }
@@ -449,11 +500,11 @@ export async function regenerateText(request) {
   });
 }
 
-export async function downloadBookPdf({ draft, images, templateSlug, designScale, photoAnalyses, filename, cropOverrides, filterOverrides, textStyleOverrides, positionOffsets, blendOverrides, sizeOverrides, signal, customPageSize, onProgress }) {
+export async function downloadBookPdf({ draft, images, templateSlug, designScale, photoAnalyses, filename, cropOverrides, filterOverrides, textStyleOverrides, positionOffsets, blendOverrides, sizeOverrides, signal, customPageSize, onProgress, transformBlob }) {
   // Pre-compress images for PDF quality (2400px, 0.92 quality)
   const compressed = await compressImagesForPDF(images, { onProgress });
   const form = new FormData();
-  compressed.forEach(img => form.append('images', img.file));
+  compressed.forEach(img => { if (isUploadable(img.file)) form.append('images', img.file); });
   form.append('draft_json', JSON.stringify(draft));
   form.append('template_slug', templateSlug || 'romantic');
 
@@ -501,13 +552,12 @@ export async function downloadBookPdf({ draft, images, templateSlug, designScale
   try {
     const downloadToken = await _downloadPdfViaSSE(BASE, form, signal, onProgress);
     // Fetch the actual PDF via the download token
-    const dlToken = await getAccessToken();
-    const pdfRes = await fetch(`${BASE}/api/books/pdf/download/${downloadToken}`, {
+    const pdfRes = await authFetch(`${BASE}/api/books/pdf/download/${downloadToken}`, {
       signal,
-      headers: dlToken ? { Authorization: `Bearer ${dlToken}` } : {},
     });
     if (!pdfRes.ok) throw new Error(`PDF download failed: ${pdfRes.status}`);
-    const blob = await pdfRes.blob();
+    let blob = await pdfRes.blob();
+    if (transformBlob) blob = await transformBlob(blob);
     _triggerBlobDownload(blob, filename || `${draft.title || 'memory-book'}.pdf`);
     return;
   } catch (err) {
@@ -515,7 +565,9 @@ export async function downloadBookPdf({ draft, images, templateSlug, designScale
       throw new Error('PDF download cancelled.');
     }
     // Fall through to blocking endpoint as fallback
-    console.warn('SSE PDF failed, falling back to blocking endpoint:', err.message);
+    if (import.meta.env.DEV) {
+      console.warn('SSE PDF failed, falling back to blocking endpoint:', err.message);
+    }
   }
 
   // Fallback: blocking /pdf endpoint with long timeout, no retries
@@ -525,7 +577,7 @@ export async function downloadBookPdf({ draft, images, templateSlug, designScale
   }
 
   try {
-    const blob = await apiBlob('/api/books/pdf', {
+    let blob = await apiBlob('/api/books/pdf', {
       method: 'POST',
       body: form,
       signal: controller.signal,
@@ -533,6 +585,7 @@ export async function downloadBookPdf({ draft, images, templateSlug, designScale
       retries: 0,
     });
 
+    if (transformBlob) blob = await transformBlob(blob);
     _triggerBlobDownload(blob, filename || `${draft.title || 'memory-book'}.pdf`);
   } catch (err) {
     if (err.name === 'AbortError') {
@@ -544,11 +597,8 @@ export async function downloadBookPdf({ draft, images, templateSlug, designScale
 
 /** Read SSE events from /pdf/stream and return the download token. */
 async function _downloadPdfViaSSE(base, form, signal, onProgress) {
-  const token = await getAccessToken();
-  const pdfHeaders = token ? { Authorization: `Bearer ${token}` } : {};
-  const res = await fetch(`${base}/api/books/pdf/stream`, {
+  const res = await authFetch(`${base}/api/books/pdf/stream`, {
     method: 'POST',
-    headers: pdfHeaders,
     body: form,
     signal,
   });
@@ -564,40 +614,44 @@ async function _downloadPdfViaSSE(base, form, signal, onProgress) {
   let downloadToken = null;
   let lastEventTime = Date.now();
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
 
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split('\n');
-    buffer = lines.pop() || '';
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
 
-    for (const line of lines) {
-      // Filter SSE heartbeat comments
-      if (line.startsWith(':')) {
-        lastEventTime = Date.now();
-        continue;
-      }
-      if (!line.startsWith('data: ')) continue;
-      lastEventTime = Date.now();
-      try {
-        const event = JSON.parse(line.slice(6));
-        if (event.stage === 'complete') {
-          downloadToken = event.download_token;
-        } else if (event.stage === 'error') {
-          throw new Error(event.message || 'PDF generation failed');
-        } else {
-          onProgress?.(event);
+      for (const line of lines) {
+        // Filter SSE heartbeat comments
+        if (line.startsWith(':')) {
+          lastEventTime = Date.now();
+          continue;
         }
-      } catch (e) {
-        if (e.message && !e.message.includes('JSON')) throw e;
+        if (!line.startsWith('data: ')) continue;
+        lastEventTime = Date.now();
+        try {
+          const event = JSON.parse(line.slice(6));
+          if (event.stage === 'complete') {
+            downloadToken = event.download_token;
+          } else if (event.stage === 'error') {
+            throw new Error(event.message || 'PDF generation failed');
+          } else {
+            onProgress?.(event);
+          }
+        } catch (e) {
+          if (e.message && !e.message.includes('JSON')) throw e;
+        }
+      }
+
+      // Detect stale connection
+      if (Date.now() - lastEventTime > 45_000) {
+        throw new Error('Connection lost — no data received. Please try again.');
       }
     }
-
-    // Detect stale connection
-    if (Date.now() - lastEventTime > 45_000) {
-      throw new Error('Connection lost — no data received. Please try again.');
-    }
+  } finally {
+    reader.cancel();
   }
 
   if (!downloadToken) {

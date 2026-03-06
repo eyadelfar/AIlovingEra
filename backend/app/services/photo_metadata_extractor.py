@@ -2,6 +2,7 @@
 
 import asyncio
 import io
+from concurrent.futures import ThreadPoolExecutor
 
 import structlog
 from PIL import Image, ExifTags, ImageFilter
@@ -21,20 +22,27 @@ _EXIF_ISO_TAG = 0x8827  # ISOSpeedRatings
 _EXIF_EXPOSURE_TAG = 0x829A  # ExposureTime
 _EXIF_FNUMBER_TAG = 0x829D  # FNumber
 
+# Reusable thread pool for CPU-bound PIL work
+_POOL = ThreadPoolExecutor(max_workers=8)
+
 
 async def extract_photo_metadata(
     image_bytes_list: list[bytes],
     mime_types: list[str],
 ) -> list[PhotoMetadata]:
-    # Offload CPU-bound PIL work to a thread to avoid blocking the event loop
-    def _extract_all():
-        results: list[PhotoMetadata] = []
-        for idx, raw in enumerate(image_bytes_list):
-            meta = _extract_single(idx, raw, mime_types[idx] if idx < len(mime_types) else "image/jpeg")
-            results.append(meta)
-        return results
-
-    return await asyncio.to_thread(_extract_all)
+    # Process all photos in parallel using thread pool
+    loop = asyncio.get_running_loop()
+    futures = [
+        loop.run_in_executor(
+            _POOL,
+            _extract_single,
+            idx,
+            raw,
+            mime_types[idx] if idx < len(mime_types) else "image/jpeg",
+        )
+        for idx, raw in enumerate(image_bytes_list)
+    ]
+    return list(await asyncio.gather(*futures))
 
 
 def _dms_to_decimal(dms_tuple: tuple, ref: str) -> float | None:

@@ -14,7 +14,7 @@ def is_rate_limit_error(exc: Exception) -> bool:
     )
 
 
-async def with_rate_limit_retry(coro_factory, max_retries=1, delay=5):
+async def with_rate_limit_retry(coro_factory, max_retries=3, delay=4):
     """Execute an async function with automatic rate limit retry.
 
     coro_factory: a callable that returns a new coroutine each time.

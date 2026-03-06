@@ -1,41 +1,11 @@
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AnimatePresence, motion } from 'framer-motion';
 import {
-  Heart, CloudRain, Laugh, Zap, Film, Gem,
-  ChevronRight,
-} from 'lucide-react';
-import {
-  OCCASIONS, VIBES, IMAGE_LOOKS, PAGE_SIZES, ADD_ONS, IMAGE_DENSITIES,
+  OCCASIONS, VIBES, PAGE_SIZES, ADD_ONS, IMAGE_DENSITIES,
 } from '../../lib/constants';
-import { IMAGE_LOOK_CSS_FILTERS } from '../../lib/previewFilters';
-import SamplePhoto from './SamplePhoto';
+import { VIBE_ICONS } from './vibeIcons';
 
-const VIBE_ICONS = {
-  romantic_warm: Heart,
-  bittersweet_lovely: CloudRain,
-  playful_meme: Laugh,
-  comic_illustrated: Zap,
-  cinematic_poetic: Film,
-  minimal_luxury: Gem,
-};
-
-function PhotoLookThumbnail({ lookValue, previewUrl }) {
-  const filter = IMAGE_LOOK_CSS_FILTERS[lookValue] || 'none';
-  return (
-    <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 border border-gray-700">
-      {previewUrl ? (
-        <img src={previewUrl} alt="" className="w-full h-full object-cover" style={{ filter }} />
-      ) : (
-        <SamplePhoto cssFilter={filter} className="w-full h-full" />
-      )}
-    </div>
-  );
-}
-
-export function DesignStyleSection({ selectedTemplate, templates, onSelectTemplate, imageLook, setImageLook, previewPhoto, compact }) {
+export function DesignStyleSection({ selectedTemplate, templates, onSelectTemplate, compact }) {
   const { t } = useTranslation('wizard');
-  const [showPhotoLookCustomize, setShowPhotoLookCustomize] = useState(false);
 
   return (
     <div className={compact ? 'space-y-4' : 'space-y-8'}>
@@ -56,54 +26,6 @@ export function DesignStyleSection({ selectedTemplate, templates, onSelectTempla
               </span>
             </button>
           ))}
-        </div>
-      )}
-
-      {selectedTemplate && (
-        <div>
-          <button
-            onClick={() => setShowPhotoLookCustomize(prev => !prev)}
-            className="flex items-center gap-2 text-sm text-gray-400 hover:text-gray-300 transition-colors"
-          >
-            <ChevronRight className={`h-4 w-4 transition-transform ${showPhotoLookCustomize ? 'rotate-90' : ''}`} />
-            {t('photoStyle')}
-            <span className="text-xs text-gray-600">
-              ({t(IMAGE_LOOKS.find(l => l.value === imageLook)?.i18nLabel || 'lookNatural')})
-            </span>
-          </button>
-          <AnimatePresence initial={false}>
-            {showPhotoLookCustomize && (
-              <motion.div
-                key="photo-look"
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.2, ease: 'easeInOut' }}
-                className="overflow-hidden"
-              >
-                <div className={`mt-3 grid ${compact ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-4'} gap-3`}>
-                  {IMAGE_LOOKS.map(look => (
-                    <button
-                      key={look.value}
-                      onClick={() => setImageLook(look.value)}
-                      className={`flex items-start gap-2 px-2 py-2 rounded-xl text-start transition-all border ${
-                        imageLook === look.value
-                          ? 'border-rose-500 bg-rose-500/10 ring-1 ring-rose-500/30'
-                          : 'border-gray-700 bg-gray-900/40 hover:border-gray-600'
-                      }`}
-                    >
-                      <PhotoLookThumbnail lookValue={look.value} previewUrl={previewPhoto} />
-                      <div className="min-w-0 flex-1">
-                        <span className={`block text-xs font-medium ${imageLook === look.value ? 'text-rose-300' : 'text-gray-300'}`}>
-                          {t(look.i18nLabel)}
-                        </span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
       )}
     </div>
@@ -184,7 +106,7 @@ export function AboutYouSection({ partnerNames, setPartnerNames, occasion, setOc
   );
 }
 
-export function BookFormatSection({ designScale, setDesignScale, imageDensity, setImageDensity, compact }) {
+export function BookFormatSection({ designScale, setDesignScale, imageDensity, setImageDensity, customPageSize, setCustomPageSize, customDensityCount, setCustomDensityCount, compact }) {
   const { t } = useTranslation('wizard');
   return (
     <div className={compact ? 'space-y-3' : 'space-y-6'}>
@@ -204,9 +126,48 @@ export function BookFormatSection({ designScale, setDesignScale, imageDensity, s
               <span className={`block text-xs font-medium ${designScale.pageSize === s.value ? 'text-rose-300' : 'text-gray-200'}`}>
                 {t(s.i18nLabel)}
               </span>
+              {s.value === 'custom' && designScale.pageSize === 'custom' && customPageSize && (
+                <span className="block text-[10px] text-rose-400/70 mt-0.5">
+                  {customPageSize.width} x {customPageSize.height} {customPageSize.unit}
+                </span>
+              )}
             </button>
           ))}
         </div>
+        {designScale.pageSize === 'custom' && setCustomPageSize && (
+          <div className="mt-2 flex items-center gap-2">
+            <input
+              type="number"
+              min={1}
+              max={50}
+              step={0.5}
+              value={customPageSize?.width || 8.5}
+              onChange={e => setCustomPageSize({ width: parseFloat(e.target.value) || 8.5 })}
+              className="w-20 bg-gray-900/60 border border-gray-700 rounded-lg px-2 py-1.5 text-xs text-gray-200 focus:outline-none focus:ring-2 focus:ring-rose-500/50"
+              placeholder={t('width') || 'Width'}
+            />
+            <span className="text-gray-500 text-xs">x</span>
+            <input
+              type="number"
+              min={1}
+              max={50}
+              step={0.5}
+              value={customPageSize?.height || 11}
+              onChange={e => setCustomPageSize({ height: parseFloat(e.target.value) || 11 })}
+              className="w-20 bg-gray-900/60 border border-gray-700 rounded-lg px-2 py-1.5 text-xs text-gray-200 focus:outline-none focus:ring-2 focus:ring-rose-500/50"
+              placeholder={t('height') || 'Height'}
+            />
+            <select
+              value={customPageSize?.unit || 'in'}
+              onChange={e => setCustomPageSize({ unit: e.target.value })}
+              className="bg-gray-900/60 border border-gray-700 rounded-lg px-2 py-1.5 text-xs text-gray-200 focus:outline-none focus:ring-2 focus:ring-rose-500/50"
+            >
+              <option value="in">in</option>
+              <option value="mm">mm</option>
+              <option value="cm">cm</option>
+            </select>
+          </div>
+        )}
       </div>
 
       <div>
@@ -225,9 +186,27 @@ export function BookFormatSection({ designScale, setDesignScale, imageDensity, s
               <span className={`block text-xs font-medium ${imageDensity === d.value ? 'text-rose-300' : 'text-gray-200'}`}>
                 {t(d.i18nLabel)}
               </span>
+              {d.value === 'custom' && imageDensity === 'custom' && customDensityCount != null && (
+                <span className="block text-[10px] text-rose-400/70 mt-0.5">
+                  {customDensityCount} {t('perPage') || '/page'}
+                </span>
+              )}
             </button>
           ))}
         </div>
+        {imageDensity === 'custom' && setCustomDensityCount && (
+          <div className="mt-2 flex items-center gap-2">
+            <label className="text-xs text-gray-500">{t('photosPerPage') || 'Photos per page'}:</label>
+            <input
+              type="number"
+              min={1}
+              max={10}
+              value={customDensityCount || 4}
+              onChange={e => setCustomDensityCount(parseInt(e.target.value) || 4)}
+              className="w-16 bg-gray-900/60 border border-gray-700 rounded-lg px-2 py-1.5 text-xs text-gray-200 focus:outline-none focus:ring-2 focus:ring-rose-500/50"
+            />
+          </div>
+        )}
       </div>
 
       <div>

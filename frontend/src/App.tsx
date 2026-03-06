@@ -22,8 +22,8 @@ const AdminDesignsPage = lazy(() => import('./features/admin/pages/AdminDesignsP
 const AdminContactsPage = lazy(() => import('./features/admin/pages/AdminContactsPage'));
 const AdminSystemPage = lazy(() => import('./features/admin/pages/AdminSystemPage'));
 const AdminAuditLogPage = lazy(() => import('./features/admin/pages/AdminAuditLogPage'));
-import AdminRoute from './features/admin/AdminRoute';
-import AdminLayout from './layouts/AdminLayout';
+const AdminRoute = lazy(() => import('./features/admin/AdminRoute'));
+const AdminLayout = lazy(() => import('./layouts/AdminLayout'));
 
 // Auth
 const LoginPage = lazy(() => import('./features/auth/LoginPage'));
@@ -51,7 +51,7 @@ const PrivacyPolicyPage = lazy(() => import('./features/pages/PrivacyPolicyPage'
 const TermsOfServicePage = lazy(() => import('./features/pages/TermsOfServicePage'));
 
 // Auth helpers
-import ProtectedRoute from './features/auth/ProtectedRoute';
+const ProtectedRoute = lazy(() => import('./features/auth/ProtectedRoute'));
 
 function PageFallback() {
   return (
@@ -70,7 +70,7 @@ export default function App() {
   }, [location.pathname]);
 
   useEffect(() => {
-    const handleLang = (lng) => {
+    const handleLang = (lng: string) => {
       document.documentElement.dir = isRTL(lng) ? 'rtl' : 'ltr';
       document.documentElement.lang = lng;
     };

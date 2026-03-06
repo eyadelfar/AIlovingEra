@@ -1,16 +1,9 @@
-/**
- * KeepSqueak logo mark + wordmark.
- *
- * Icon concept: A geometric mouse face whose body is shaped like a polaroid
- * photo frame — you read "photo" first, then notice it's a mouse character.
- * The camera-aperture star inside ties the character to the product.
- * Mouse ears emerge naturally from the top corners of the frame.
- *
- * Wordmark: "Keep" in solid white (trustworthy/strong) +
- *           "squeak" in italic rose→violet gradient (playful/warm) +
- *           ✦ amber star (AI / sparkle of memory)
- */
-export default function Logo({ className = '', iconOnly = false }) {
+interface LogoProps {
+  className?: string;
+  iconOnly?: boolean;
+}
+
+export default function Logo({ className = '', iconOnly = false }: LogoProps) {
   return (
     <span dir="ltr" className={`inline-flex items-center gap-2 select-none ${className}`}>
 

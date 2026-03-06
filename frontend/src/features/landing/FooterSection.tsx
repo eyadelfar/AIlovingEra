@@ -1,12 +1,20 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { motion } from 'framer-motion';
 import Logo from '../shared/Logo';
+import { footerFadeVariants } from '../../lib/landing-animations';
 
 export default function FooterSection() {
   const { t } = useTranslation();
 
   return (
-    <footer className="py-12 border-t border-gray-800/50">
+    <motion.footer
+      variants={footerFadeVariants}
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once: true, margin: '-50px' }}
+      className="py-12 border-t border-gray-800/50"
+    >
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid sm:grid-cols-3 gap-8 mb-8">
           {/* Brand */}
@@ -50,6 +58,6 @@ export default function FooterSection() {
           </p>
         </div>
       </div>
-    </footer>
+    </motion.footer>
   );
 }

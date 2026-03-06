@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import MiniCouple from './MiniCouple';
@@ -122,14 +122,13 @@ function PhotoCollage({ images, progress }) {
     const rng = seededRandom(displayPhotos.reduce((acc, img, i) => acc + i * 7 + 1, 42));
     const count = displayPhotos.length;
     const cols = Math.min(4, count);
-    const rows = Math.ceil(count / cols);
     const spacing = 100; // px between grid items
     return displayPhotos.map((_, i) => {
       const row = Math.floor(i / cols);
       const col = i % cols;
       // Grid target: centered around origin (0,0)
       const gridX = (col - (cols - 1) / 2) * spacing;
-      const gridY = (row - (rows - 1) / 2) * (spacing * 0.6);
+      const gridY = (row - (Math.ceil(count / cols) - 1) / 2) * (spacing * 0.6);
       // Scatter: ring/ellipse distribution around center
       const angle = (i / count) * 2 * Math.PI + rng() * 0.5;
       const radiusX = 100 + rng() * 80;
@@ -141,40 +140,89 @@ function PhotoCollage({ images, progress }) {
     });
   }, [displayPhotos]);
 
-  if (displayPhotos.length === 0) return null;
+  // Per-photo unique frequency/phase for floating (seeded from positions)
+  const floatParams = useMemo(() => {
+    const rng = seededRandom(displayPhotos.length * 31 + 7);
+    return displayPhotos.map(() => ({
+      freqX: 0.4 + rng() * 0.6,   // 0.4–1.0 Hz
+      freqY: 0.3 + rng() * 0.5,
+      phaseX: rng() * Math.PI * 2,
+      phaseY: rng() * Math.PI * 2,
+      freqRot: 0.2 + rng() * 0.4,
+      phaseRot: rng() * Math.PI * 2,
+    }));
+  }, [displayPhotos]);
 
-  const organization = Math.min(progress / 80, 1);
+  // Smoothly interpolate each photo's position via RAF (no CSS transition needed)
+  const photoRefs = useRef([]);
+  const animatedRef = useRef(displayPhotos.map(() => ({ x: 0, y: 0, rot: 0, scale: 0.5, opacity: 0 })));
+
+  useEffect(() => {
+    let raf;
+    const animate = () => {
+      const now = performance.now() / 1000; // seconds
+      const organization = Math.min(progress / 80, 1);
+      // Fade out float amplitude when nearing completion
+      const floatFade = progress >= 95 ? Math.max(0, 1 - (progress - 95) / 5) : 1;
+      const floatAmp = 4 * floatFade; // ~4px amplitude
+
+      displayPhotos.forEach((_, i) => {
+        const p = positions[i];
+        if (!p) return;
+        const fp = floatParams[i];
+
+        // Time-based floating offset (keeps photos alive even when progress stalls)
+        const floatX = Math.sin(now * fp.freqX * Math.PI * 2 + fp.phaseX) * floatAmp;
+        const floatY = Math.cos(now * fp.freqY * Math.PI * 2 + fp.phaseY) * floatAmp;
+        const floatRot = Math.sin(now * fp.freqRot * Math.PI * 2 + fp.phaseRot) * 1.5 * floatFade;
+
+        const targetX = p.scatterX * (1 - organization) + p.gridX * organization + floatX;
+        const targetY = p.scatterY * (1 - organization) + p.gridY * organization + floatY;
+        const targetRot = (1 - organization) * p.sign * (8 + i * 3) * (1 - organization) + floatRot;
+        const targetScale = progress > 5 ? 1 : 0.5;
+        const targetOpacity = progress > 5 ? 1 : 0;
+
+        const a = animatedRef.current[i];
+        const lerp = 0.08;
+        a.x += (targetX - a.x) * lerp;
+        a.y += (targetY - a.y) * lerp;
+        a.rot += (targetRot - a.rot) * lerp;
+        a.scale += (targetScale - a.scale) * lerp;
+        a.opacity += (targetOpacity - a.opacity) * 0.12;
+
+        const el = photoRefs.current[i];
+        if (el) {
+          el.style.transform = `translateX(${a.x}px) translateY(${a.y}px) rotate(${a.rot}deg) scale(${a.scale})`;
+          el.style.opacity = a.opacity;
+        }
+      });
+      raf = requestAnimationFrame(animate);
+    };
+    raf = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(raf);
+  }, [progress, positions, displayPhotos, floatParams]);
+
+  if (displayPhotos.length === 0) return null;
 
   return (
     <div className="relative w-full max-w-2xl h-44 sm:h-56 mx-auto mb-3 overflow-hidden">
-      {displayPhotos.map((img, i) => {
-        const p = positions[i];
-        const angle = (1 - organization) * p.sign * (8 + i * 3);
-        const x = p.scatterX * (1 - organization) + p.gridX * organization;
-        const y = p.scatterY * (1 - organization) + p.gridY * organization;
-        const opacity = progress > 5 ? 1 : 0;
-        const scale = progress > 5 ? 1 : 0.5;
-
-        return (
-          <div
-            key={img.id}
-            className="absolute w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden border-2 border-white/10 shadow-lg"
-            style={{
-              left: '50%',
-              top: '50%',
-              marginLeft: 'calc(-1 * var(--photo-half))',
-              marginTop: 'calc(-1 * var(--photo-half))',
-              '--photo-half': '2.5rem',
-              opacity,
-              transform: `translateX(${x}px) translateY(${y}px) rotate(${angle * (1 - organization)}deg) scale(${scale})`,
-              transition: 'transform 1.5s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.8s ease',
-              willChange: 'transform, opacity',
-            }}
-          >
-            <img src={img.previewUrl} alt="" className="w-full h-full object-cover" />
-          </div>
-        );
-      })}
+      {displayPhotos.map((img, i) => (
+        <div
+          key={img.id}
+          ref={(el) => { photoRefs.current[i] = el; }}
+          className="absolute w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden border-2 border-white/10 shadow-lg"
+          style={{
+            left: '50%',
+            top: '50%',
+            marginLeft: 'calc(-1 * var(--photo-half))',
+            marginTop: 'calc(-1 * var(--photo-half))',
+            '--photo-half': '2.5rem',
+            willChange: 'transform, opacity',
+          }}
+        >
+          <img src={img.previewUrl} alt="" className="w-full h-full object-cover" />
+        </div>
+      ))}
     </div>
   );
 }
@@ -245,7 +293,7 @@ function PageFanAnimation({ progress, stageIndex }) {
   );
 }
 
-export default function GenerationAnimation({ progress, images, cartoonImages, totalPages, currentPage, generationStage }) {
+export default function GenerationAnimation({ progress, images, cartoonImages, totalPages }) {
   const { t } = useTranslation('wizard');
 
   // Smooth progress interpolation — eases toward target instead of jumping

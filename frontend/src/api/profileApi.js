@@ -1,4 +1,4 @@
-import { apiJson, apiFetch } from '../lib/api';
+import { apiJson } from '../lib/api';
 
 export async function fetchProfile() {
   return apiJson('/api/profile');

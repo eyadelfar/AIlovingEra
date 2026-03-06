@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { LogOut, User, BookOpen, CreditCard, ChevronDown, Globe, Upload, Menu, X, Palette, BarChart3, Gift, Shield } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -16,7 +16,8 @@ export default function Navbar() {
   const profile = useAuthStore((s) => s.profile);
   const signOut = useAuthStore((s) => s.signOut);
   const loading = useAuthStore((s) => s.loading);
-  const navigate = useNavigate();
+  const fetchProfile = useAuthStore((s) => s.fetchProfile);
+  const location = useLocation();
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
@@ -42,14 +43,22 @@ export default function Navbar() {
   // Close mobile menu on route change
   useEffect(() => {
     setMobileMenuOpen(false);
-  }, [navigate]);
+  }, [location.pathname]);
 
-  const handleSignOut = async () => {
+  // Self-healing: fetch profile if user is authenticated but profile is missing
+  useEffect(() => {
+    if (user && !profile && !loading) {
+      fetchProfile();
+    }
+  }, [user, profile, loading, fetchProfile]);
+
+  const handleSignOut = () => {
     setDropdownOpen(false);
     setMobileMenuOpen(false);
-    try { await signOut(); }
-    catch (err) { console.warn('Sign out error:', err.message); }
-    navigate('/');
+    signOut();
+    // Force FULL page reload — destroys all in-memory state, listeners, caches.
+    // SPA navigate('/') does NOT work because onAuthStateChange listener survives.
+    window.location.href = '/';
   };
 
   const handleLanguageChange = (code) => {
@@ -274,8 +283,8 @@ export default function Navbar() {
               initial={{ x: isRTL(i18n.language) ? '-100%' : '100%' }}
               animate={{ x: 0 }}
               exit={{ x: isRTL(i18n.language) ? '-100%' : '100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className={`fixed top-0 ${isRTL(i18n.language) ? 'start-0' : 'end-0'} z-50 w-72 h-full bg-gray-950 border-s border-white/10 md:hidden overflow-y-auto`}
+              transition={{ type: 'spring', damping: 30, stiffness: 200 }}
+              className={`fixed top-0 ${isRTL(i18n.language) ? 'start-0' : 'end-0'} z-50 w-[min(18rem,85vw)] h-full bg-gray-950 border-s border-white/10 md:hidden overflow-y-auto`}
             >
               <div className="p-4">
                 <div className="flex items-center justify-between mb-6">

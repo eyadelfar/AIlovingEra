@@ -1,14 +1,20 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
 const AUTOSAVE_DELAY = 1500;
+
+function autoResize(el) {
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
 
 export default function MiniReelStoryboard({ frames, isEditMode, onFrameChange }) {
   const { t } = useTranslation('viewer');
   const [localFrames, setLocalFrames] = useState(frames || []);
   const debounceRefs = useRef({});
   const onFrameChangeRef = useRef(onFrameChange);
-  onFrameChangeRef.current = onFrameChange;
+  useEffect(() => { onFrameChangeRef.current = onFrameChange; });
 
   // Sync from props when external changes happen (e.g., undo)
   useEffect(() => {
@@ -25,16 +31,24 @@ export default function MiniReelStoryboard({ frames, isEditMode, onFrameChange }
     if (val !== frames[idx]) onFrameChangeRef.current?.(idx, val);
   }, [frames]);
 
-  const handleChange = useCallback((idx, val) => {
+  const textareaRefs = useRef({});
+
+  const handleChange = useCallback((idx, val, el) => {
     setLocalFrames(prev => {
       const next = [...prev];
       next[idx] = val;
       return next;
     });
+    autoResize(el);
     // Debounced autosave — saves after user pauses typing
     clearTimeout(debounceRefs.current[idx]);
     debounceRefs.current[idx] = setTimeout(() => flushFrame(idx, val), AUTOSAVE_DELAY);
   }, [flushFrame]);
+
+  // Auto-resize all textareas when frames change or edit mode toggles
+  useLayoutEffect(() => {
+    Object.values(textareaRefs.current).forEach(autoResize);
+  }, [localFrames, isEditMode]);
 
   if (!frames?.length) return null;
 
@@ -70,11 +84,13 @@ export default function MiniReelStoryboard({ frames, isEditMode, onFrameChange }
             <div className="p-4">
               {isEditMode ? (
                 <textarea
+                  ref={(el) => { textareaRefs.current[idx] = el; }}
                   value={localFrames[idx] ?? frame}
-                  onChange={(e) => handleChange(idx, e.target.value)}
+                  onChange={(e) => handleChange(idx, e.target.value, e.target)}
                   onBlur={() => flushFrame(idx, localFrames[idx] ?? frame)}
-                  className="w-full text-sm text-gray-300 leading-relaxed bg-transparent border border-dashed border-violet-500/30 rounded p-1.5 focus:outline-none focus:border-violet-500/60 resize-none overflow-hidden"
-                  rows={3}
+                  className="w-full text-sm text-gray-300 leading-relaxed bg-transparent border border-dashed border-violet-500/30 rounded p-1.5 focus:outline-none focus:border-violet-500/60 resize-vertical overflow-hidden"
+                  rows={2}
+                  style={{ minHeight: '3rem' }}
                 />
               ) : (
                 <p className="text-sm text-gray-300 leading-relaxed">{frame}</p>

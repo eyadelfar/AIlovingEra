@@ -1,14 +1,29 @@
 import {
-  generateBookStream, generateCartoon,
+  generateCartoon,
   uploadImages, analyzeStream, planBook, writeBookStream,
   unlockBook as unlockBookApi,
 } from '../api/bookApi';
+import { ensureFiles } from '../lib/imageUtils';
 import { trackEvent } from '../lib/eventTracker';
+
+/* ── Phase-aware progress mapping ─────────────────────────────────── */
+const PHASE_RANGES = {
+  upload:  [0, 5],
+  analyze: [5, 35],
+  plan:    [35, 50],
+  write:   [50, 99],
+};
+
+function phaseProgress(phase, raw) {
+  const [lo, hi] = PHASE_RANGES[phase] || [0, 100];
+  return Math.round(lo + (raw / 100) * (hi - lo));
+}
 
 export const createGenerationSlice = (set, get) => ({
   isGenerating: false,
   generationProgress: 0,
   generationStage: '',
+  generationPhase: 'idle',
   generationTotalPages: 0,
   generationCurrentPage: 0,
   bookDraft: null,
@@ -78,10 +93,12 @@ export const createGenerationSlice = (set, get) => ({
    */
   startGeneration: async () => {
     const s = get();
+    if (s.isGenerating) return;
     const abortController = new AbortController();
     set({
       isGenerating: true,
       generationProgress: 0,
+      generationPhase: 'upload',
       generationStage: 'Starting...',
       generationTotalPages: 0,
       generationCurrentPage: 0,
@@ -96,11 +113,13 @@ export const createGenerationSlice = (set, get) => ({
       get().triggerCartoonGeneration();
     }
 
-    const onProgress = (event) => {
-      const currentProgress = get().generationProgress;
-      const newProgress = event.progress ?? currentProgress;
+    const onProgress = (event, phase) => {
+      const cur = get().generationProgress;
+      // Once complete, ignore further updates
+      if (get().generationPhase === 'complete') return;
+      const mapped = phaseProgress(phase, event.progress ?? 0);
       set({
-        generationProgress: Math.max(newProgress, currentProgress),
+        generationProgress: Math.max(mapped, cur),
         generationStage: event.message ?? get().generationStage,
         generationTotalPages: event.totalPages ?? get().generationTotalPages,
         generationCurrentPage: event.current ?? get().generationCurrentPage,
@@ -114,26 +133,44 @@ export const createGenerationSlice = (set, get) => ({
 
       // Step 1: Upload (if no session yet)
       if (!sessionId) {
-        set({ generationStage: 'Uploading photos...' });
-        const uploadResult = await uploadImages(s.images);
+        set({ generationPhase: 'upload', generationStage: 'Uploading photos...' });
+        // Re-hydrate File objects if they were evicted after a previous generation
+        const hydratedImages = await ensureFiles(get().images);
+        set({ images: hydratedImages });
+        const uploadResult = await uploadImages(hydratedImages);
         sessionId = uploadResult.session_id;
-        set({ sessionId, generationProgress: 1 });
+        set((prev) => ({
+          sessionId,
+          generationProgress: Math.max(5, prev.generationProgress),
+        }));
       }
 
       // Step 2: Analyze (if not already done)
       if (!hasAnalysis) {
-        await analyzeStream(sessionId, onProgress, abortController.signal);
-        set({ analysisComplete: true });
+        set({ generationPhase: 'analyze' });
+        await analyzeStream(sessionId, (e) => onProgress(e, 'analyze'), abortController.signal);
+        set((prev) => ({
+          analysisComplete: true,
+          generationProgress: Math.max(35, prev.generationProgress),
+        }));
       }
 
       // Step 3: Plan
-      set({ generationStage: 'Planning your book layout...' });
+      set((prev) => ({
+        generationPhase: 'plan',
+        generationStage: 'Planning your book layout...',
+        generationProgress: Math.max(35, prev.generationProgress),
+      }));
       const planRes = await planBook(sessionId, get()._getSettings());
-      set({ planResult: planRes.plan, generationProgress: 50 });
+      set((prev) => ({
+        planResult: planRes.plan,
+        generationProgress: Math.max(50, prev.generationProgress),
+      }));
 
       // Step 4: Write (streams progress, credit deducted here)
+      set({ generationPhase: 'write' });
       const result = await writeBookStream(
-        sessionId, get()._getSettings(), onProgress, abortController.signal,
+        sessionId, get()._getSettings(), (e) => onProgress(e, 'write'), abortController.signal,
       );
 
       // Evict File objects from images to free memory (keep previewUrl)
@@ -144,6 +181,7 @@ export const createGenerationSlice = (set, get) => ({
         previewOnly: result.preview_only || false,
         isGenerating: false,
         generationProgress: 100,
+        generationPhase: 'complete',
         generationStage: 'Complete!',
         _abortController: null,
       }));
@@ -153,6 +191,7 @@ export const createGenerationSlice = (set, get) => ({
       set({
         isGenerating: false,
         generationProgress: 0,
+        generationPhase: 'idle',
         generationStage: '',
         error: err.message || 'Generation failed',
         generationId: err.generationId ?? get().generationId,
@@ -168,6 +207,7 @@ export const createGenerationSlice = (set, get) => ({
    */
   rewriteWithNewSettings: async () => {
     const s = get();
+    if (s.isGenerating) return;
     if (!s.sessionId || !s.analysisComplete) {
       // No session — fall back to full generation
       return get().startGeneration();
@@ -177,6 +217,7 @@ export const createGenerationSlice = (set, get) => ({
     set({
       isGenerating: true,
       generationProgress: 40,
+      generationPhase: 'plan',
       generationStage: 'Re-planning with new settings...',
       generationTotalPages: 0,
       generationCurrentPage: 0,
@@ -186,11 +227,12 @@ export const createGenerationSlice = (set, get) => ({
       _abortController: abortController,
     });
 
-    const onProgress = (event) => {
-      const currentProgress = get().generationProgress;
-      const newProgress = event.progress ?? currentProgress;
+    const onProgress = (event, phase) => {
+      const cur = get().generationProgress;
+      if (get().generationPhase === 'complete') return;
+      const mapped = phaseProgress(phase, event.progress ?? 0);
       set({
-        generationProgress: Math.max(newProgress, currentProgress),
+        generationProgress: Math.max(mapped, cur),
         generationStage: event.message ?? get().generationStage,
         generationTotalPages: event.totalPages ?? get().generationTotalPages,
         generationCurrentPage: event.current ?? get().generationCurrentPage,
@@ -201,11 +243,15 @@ export const createGenerationSlice = (set, get) => ({
     try {
       // Re-plan with new settings
       const planRes = await planBook(s.sessionId, get()._getSettings());
-      set({ planResult: planRes.plan, generationProgress: 50 });
+      set((prev) => ({
+        planResult: planRes.plan,
+        generationProgress: Math.max(50, prev.generationProgress),
+      }));
 
       // Re-write with new plan
+      set({ generationPhase: 'write' });
       const result = await writeBookStream(
-        s.sessionId, get()._getSettings(), onProgress, abortController.signal,
+        s.sessionId, get()._getSettings(), (e) => onProgress(e, 'write'), abortController.signal,
       );
 
       set({
@@ -214,6 +260,7 @@ export const createGenerationSlice = (set, get) => ({
         previewOnly: result.preview_only || false,
         isGenerating: false,
         generationProgress: 100,
+        generationPhase: 'complete',
         generationStage: 'Complete!',
         _abortController: null,
       });
@@ -222,6 +269,7 @@ export const createGenerationSlice = (set, get) => ({
       set({
         isGenerating: false,
         generationProgress: 0,
+        generationPhase: 'idle',
         generationStage: '',
         error: err.message || 'Regeneration failed',
         generationId: err.generationId ?? get().generationId,
@@ -231,7 +279,7 @@ export const createGenerationSlice = (set, get) => ({
   },
 
   retryGeneration: () => {
-    set({ error: null, generationProgress: 0, generationStage: '' });
+    set({ error: null, generationProgress: 0, generationPhase: 'idle', generationStage: '' });
     get().startGeneration();
   },
 
@@ -242,6 +290,7 @@ export const createGenerationSlice = (set, get) => ({
       _abortController: null,
       isGenerating: false,
       generationProgress: 0,
+      generationPhase: 'idle',
       generationStage: '',
       generationTotalPages: 0,
       generationCurrentPage: 0,
@@ -252,16 +301,11 @@ export const createGenerationSlice = (set, get) => ({
   unlockBook: async () => {
     const genId = get().generationId;
     if (!genId) return false;
-    try {
-      const result = await unlockBookApi(genId);
-      if (result.unlocked) {
-        set({ previewOnly: false });
-        return true;
-      }
-      return false;
-    } catch (err) {
-      console.error('Unlock failed:', err);
-      throw err;
+    const result = await unlockBookApi(genId);
+    if (result.unlocked) {
+      set({ previewOnly: false });
+      return true;
     }
+    return false;
   },
 });

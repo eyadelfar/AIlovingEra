@@ -46,9 +46,10 @@ const useBookStore = create((...a) => ({
       designScale: { pageSize: 'a4', pageCountTarget: 0, bleedMm: 3, marginMm: 12 },
       addOns: { loveLetter: false, audioQrCodes: false, anniversaryCover: false, miniReel: false },
       blendPhotos: false,
-      isGenerating: false, generationProgress: 0, generationStage: '',
+      isGenerating: false, generationProgress: 0, generationStage: '', generationPhase: 'idle',
       generationTotalPages: 0, generationCurrentPage: 0,
       _abortController: null, _questionRevealTimer: null,
+      sessionId: null, analysisComplete: false, planResult: null, generationId: null,
       bookDraft: null, photoAnalyses: [], previewOnly: false, error: null, cartoonImages: [], cartoonLoading: false,
       customTheme: { pageBgColor: '#1a1020', headingColor: '#f9a8d4', bodyColor: '#e2e8f0', accentColor: '#c084fc', photoFrameStyle: 'rounded' },
       customDensityCount: 4, customPageSize: { width: 8.5, height: 11, unit: 'in' },
@@ -58,6 +59,7 @@ const useBookStore = create((...a) => ({
       editorDirty: false, cropOverrides: {}, filterOverrides: {},
       positionOffsets: {}, blendOverrides: {}, textStyleOverrides: {},
       textPositionOffsets: {}, sizeOverrides: {},
+      imageFrameOverrides: {}, pageFrameOverrides: {}, bookPageFrame: null, shapeOverlays: {},
     });
   },
 }));

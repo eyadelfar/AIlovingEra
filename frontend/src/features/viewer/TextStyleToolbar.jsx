@@ -16,7 +16,7 @@ const PALETTE_COLORS = [
   '#ffffff', '#f1f5f9', '#fbbf24', '#fb7185', '#a78bfa', '#34d399',
 ];
 
-export default function TextStyleToolbar({ overrideKey, style, templateSlug }) {
+export default function TextStyleToolbar({ overrideKey, style }) {
   const setTextStyleOverride = useBookStore(s => s.setTextStyleOverride);
 
   function updateStyle(updates) {

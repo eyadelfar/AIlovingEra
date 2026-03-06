@@ -24,6 +24,7 @@ body {
 
 html {
   scroll-padding-top: var(--navbar-h);
+  position: relative;
 }
 
 [dir="rtl"] {
@@ -70,6 +71,12 @@ body.modal-open {
   0%,  45% { background-position: -150% 0; }
   88%      { background-position:  220% 0; }
   100%     { background-position:  220% 0; }
+}
+
+/* Global keyboard focus ring */
+:focus-visible {
+  outline: 2px solid #c084fc;
+  outline-offset: 2px;
 }
 
 /* Responsive photo collage centering (generation animation) */

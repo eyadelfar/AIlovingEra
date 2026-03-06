@@ -8,6 +8,7 @@ const MIXED_LAYOUTS = new Set(['PHOTO_PLUS_QUOTE', 'COLLAGE_PLUS_LETTER']);
 const OVERRIDE_MAP_NAMES = [
   'cropOverrides', 'filterOverrides', 'positionOffsets',
   'blendOverrides', 'textStyleOverrides', 'textPositionOffsets', 'sizeOverrides',
+  'imageFrameOverrides', 'pageFrameOverrides', 'shapeOverlays',
 ];
 let _historyDebounceTimer = null;
 let _pendingSnapshot = null;
@@ -42,33 +43,45 @@ function captureVisualState(s) {
   if (draft) delete draft.pages;
   return {
     editorDraft: draft,
-    cropOverrides: { ...s.cropOverrides },
-    filterOverrides: { ...s.filterOverrides },
-    positionOffsets: { ...s.positionOffsets },
-    blendOverrides: { ...s.blendOverrides },
+    cropOverrides: structuredClone(s.cropOverrides),
+    filterOverrides: structuredClone(s.filterOverrides),
+    positionOffsets: structuredClone(s.positionOffsets),
+    blendOverrides: structuredClone(s.blendOverrides),
     textStyleOverrides: structuredClone(s.textStyleOverrides),
-    textPositionOffsets: { ...s.textPositionOffsets },
-    sizeOverrides: { ...s.sizeOverrides },
-    customTheme: { ...s.customTheme },
+    textPositionOffsets: structuredClone(s.textPositionOffsets),
+    sizeOverrides: structuredClone(s.sizeOverrides),
+    imageFrameOverrides: structuredClone(s.imageFrameOverrides),
+    pageFrameOverrides: structuredClone(s.pageFrameOverrides),
+    bookPageFrame: s.bookPageFrame != null ? structuredClone(s.bookPageFrame) : null,
+    shapeOverlays: structuredClone(s.shapeOverlays),
+    customTheme: structuredClone(s.customTheme),
     selectedTemplate: s.selectedTemplate,
+    images: s.images.map(img => ({ ...img })),
   };
 }
 
 /** Restore all visual state fields from a snapshot. */
 function restoreVisualState(snapshot) {
-  snapshot.editorDraft.pages = rebuildPages(snapshot.editorDraft);
-  return {
-    editorDraft: snapshot.editorDraft,
-    cropOverrides: snapshot.cropOverrides,
-    filterOverrides: snapshot.filterOverrides,
-    positionOffsets: snapshot.positionOffsets,
-    blendOverrides: snapshot.blendOverrides,
-    textStyleOverrides: snapshot.textStyleOverrides,
-    textPositionOffsets: snapshot.textPositionOffsets,
-    sizeOverrides: snapshot.sizeOverrides,
-    customTheme: snapshot.customTheme,
-    selectedTemplate: snapshot.selectedTemplate,
+  const clone = structuredClone(snapshot);
+  clone.editorDraft.pages = rebuildPages(clone.editorDraft);
+  const result = {
+    editorDraft: clone.editorDraft,
+    cropOverrides: clone.cropOverrides,
+    filterOverrides: clone.filterOverrides,
+    positionOffsets: clone.positionOffsets,
+    blendOverrides: clone.blendOverrides,
+    textStyleOverrides: clone.textStyleOverrides,
+    textPositionOffsets: clone.textPositionOffsets,
+    sizeOverrides: clone.sizeOverrides,
+    imageFrameOverrides: clone.imageFrameOverrides,
+    pageFrameOverrides: clone.pageFrameOverrides,
+    bookPageFrame: clone.bookPageFrame,
+    shapeOverlays: clone.shapeOverlays,
+    customTheme: clone.customTheme,
+    selectedTemplate: clone.selectedTemplate,
   };
+  if (clone.images) result.images = clone.images;
+  return result;
 }
 
 /** Rebuild flat pages array from chapters (lightweight sync, no bookDraft update). */
@@ -76,6 +89,13 @@ export function rebuildPages(draft) {
   if (!draft) return [];
   const pages = [];
   let pageNum = 1;
+
+  // Book front cover — decorative themed cover before first page
+  pages.push({
+    page_number: pageNum++, page_type: 'book_cover_front', layout_type: 'BOOK_COVER',
+    photo_indices: [], heading_text: draft.title || '', body_text: draft.partner_names?.join(' & ') || '',
+    caption_text: '', quote_text: '',
+  });
 
   pages.push({
     page_number: pageNum++, page_type: 'cover', layout_type: 'HERO_FULLBLEED',
@@ -111,11 +131,19 @@ export function rebuildPages(draft) {
     }
   }
   pages.push({
-    page_number: pageNum, page_type: 'back_cover', layout_type: 'QUOTE_PAGE',
+    page_number: pageNum++, page_type: 'back_cover', layout_type: 'QUOTE_PAGE',
     photo_indices: [], heading_text: draft.closing_heading || 'The End',
     body_text: draft.closing_page?.text || "Here's to many more memories together.",
     caption_text: '', quote_text: '',
   });
+
+  // Book back cover — leather-like closing cover after last page
+  pages.push({
+    page_number: pageNum, page_type: 'book_cover_back', layout_type: 'BOOK_COVER',
+    photo_indices: [], heading_text: '', body_text: '',
+    caption_text: '', quote_text: '',
+  });
+
   return pages;
 }
 
@@ -135,6 +163,12 @@ export const createEditorSlice = (set, get) => ({
   textStyleOverrides: {},
   textPositionOffsets: {},
   sizeOverrides: {},
+  imageFrameOverrides: {},
+  pageFrameOverrides: {},
+  bookPageFrame: null,
+  shapeOverlays: {},
+  /** Shared clipboard for copy/paste across pages. */
+  editorClipboard: null, // { type: 'photo'|'text', photoIdx, content, field, sourceChapterIdx, sourceSpreadIdx }
 
   /** Compute overrides on-demand for PDF — no need to store a duplicate snapshot. */
   getCommittedOverrides: () => {
@@ -147,10 +181,17 @@ export const createEditorSlice = (set, get) => ({
       textStyleOverrides: structuredClone(s.textStyleOverrides),
       textPositionOffsets: { ...s.textPositionOffsets },
       sizeOverrides: { ...s.sizeOverrides },
+      imageFrameOverrides: { ...s.imageFrameOverrides },
+      pageFrameOverrides: { ...s.pageFrameOverrides },
+      bookPageFrame: s.bookPageFrame,
+      shapeOverlays: structuredClone(s.shapeOverlays),
     };
   },
 
   initEditor: () => {
+    clearTimeout(_historyDebounceTimer);
+    _historyDebounceTimer = null;
+    _pendingSnapshot = null;
     const s = get();
     if (!s.bookDraft) return;
     const draft = structuredClone(s.bookDraft);
@@ -169,6 +210,8 @@ export const createEditorSlice = (set, get) => ({
   pushHistory: () => {
     const s = get();
     if (!s.editorDraft) return;
+    // Set dirty immediately so toggleEditMode won't miss it
+    if (!s.editorDirty) set({ editorDirty: true });
     // Capture immediately but debounce the actual history commit
     if (!_pendingSnapshot) {
       _pendingSnapshot = captureVisualState(s);
@@ -181,7 +224,6 @@ export const createEditorSlice = (set, get) => ({
       set((s) => ({
         editorHistory: [...s.editorHistory.slice(-MAX_HISTORY + 1), snap],
         editorFuture: [],
-        editorDirty: true,
       }));
     }, HISTORY_DEBOUNCE_MS);
   },
@@ -211,8 +253,10 @@ export const createEditorSlice = (set, get) => ({
   },
 
   updateSpreadField: (chapterIdx, spreadIdx, field, value) => {
+    if (chapterIdx == null || spreadIdx == null) return;
     get().pushHistory();
     set((s) => {
+      if (!s.editorDraft) return {};
       const draft = structuredClone(s.editorDraft);
       const ch = draft.chapters?.[chapterIdx];
       if (ch?.spreads?.[spreadIdx]) {
@@ -349,7 +393,6 @@ export const createEditorSlice = (set, get) => ({
       draft.pages = rebuildPages(draft);
 
       // Re-key: delete removed spread's keys, shift higher spreads down
-      const prefix = `${chapterIdx}-`;
       const remapped = remapOverrideKeys(s, (key) => {
         const parts = key.split('-');
         if (parts.length < 3) return key;
@@ -416,7 +459,6 @@ export const createEditorSlice = (set, get) => ({
       draft.pages = rebuildPages(draft);
 
       // Shift override keys above the duplicated spread up; clone overrides for the duplicate
-      const prefix = `${chapterIdx}-`;
       const remapped = remapOverrideKeys(s, (key) => {
         const parts = key.split('-');
         if (parts.length < 3) return key;
@@ -559,6 +601,58 @@ export const createEditorSlice = (set, get) => ({
     });
   },
 
+  // ── Image frame overrides (per-photo decorative borders) ──
+  setImageFrameOverride: (slotKey, frameData) => {
+    get().pushHistory();
+    set((s) => ({ imageFrameOverrides: { ...s.imageFrameOverrides, [slotKey]: frameData } }));
+  },
+  clearImageFrameOverride: (slotKey) => {
+    get().pushHistory();
+    set((s) => {
+      const next = { ...s.imageFrameOverrides };
+      delete next[slotKey];
+      return { imageFrameOverrides: next };
+    });
+  },
+
+  // ── Page frame overrides (decorative border around page shell) ──
+  setPageFrameOverride: (key, frameData) => {
+    get().pushHistory();
+    set((s) => ({ pageFrameOverrides: { ...s.pageFrameOverrides, [key]: frameData } }));
+  },
+  setBookPageFrame: (frameData) => {
+    get().pushHistory();
+    set({ bookPageFrame: frameData, editorDirty: true });
+  },
+
+  // ── Shape overlays (per-spread decorative shapes) ──
+  addShapeOverlay: (chapterIdx, spreadIdx, shapeData) => {
+    get().pushHistory();
+    const key = `${chapterIdx}-${spreadIdx}`;
+    set((s) => {
+      const existing = s.shapeOverlays[key] || [];
+      return { shapeOverlays: { ...s.shapeOverlays, [key]: [...existing, { id: `shape-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, xPct: 40, yPct: 40, widthPct: 15, heightPct: 15, color: '#ffffff', rotation: 0, ...shapeData }] } };
+    });
+  },
+  updateShapeOverlay: (chapterIdx, spreadIdx, shapeId, updates) => {
+    get().pushHistory();
+    const key = `${chapterIdx}-${spreadIdx}`;
+    set((s) => {
+      const shapes = (s.shapeOverlays[key] || []).map(sh =>
+        sh.id === shapeId ? { ...sh, ...updates } : sh
+      );
+      return { shapeOverlays: { ...s.shapeOverlays, [key]: shapes } };
+    });
+  },
+  removeShapeOverlay: (chapterIdx, spreadIdx, shapeId) => {
+    get().pushHistory();
+    const key = `${chapterIdx}-${spreadIdx}`;
+    set((s) => {
+      const shapes = (s.shapeOverlays[key] || []).filter(sh => sh.id !== shapeId);
+      return { shapeOverlays: { ...s.shapeOverlays, [key]: shapes } };
+    });
+  },
+
   // ── Template/theme with history (undoable) ──
   setTemplateWithHistory: (slug) => {
     get().pushHistory();
@@ -643,7 +737,49 @@ export const createEditorSlice = (set, get) => ({
         if (next) toSpread.layout_type = next;
       }
       draft.pages = rebuildPages(draft);
-      return { editorDraft: draft };
+
+      // --- Migrate overrides from source slot to destination slot ---
+      const srcKey = `${fromChIdx}-${fromSpIdx}-${fromSlot}`;
+      const dstKey = `${toChIdx}-${toSpIdx}-${insertAt}`;
+      const fromPrefix = `${fromChIdx}-${fromSpIdx}-`;
+      const toPrefix = `${toChIdx}-${toSpIdx}-`;
+
+      // Step 1: Extract overrides for source slot
+      const extracted = {};
+      for (const mapName of OVERRIDE_MAP_NAMES) {
+        if (s[mapName]?.[srcKey] != null) {
+          extracted[mapName] = structuredClone(s[mapName][srcKey]);
+        }
+      }
+
+      // Step 2: Remove source slot & shift source slots down
+      const remapped = remapOverrideKeys(s, (key) => {
+        if (!key.startsWith(fromPrefix)) return key;
+        const suffix = key.slice(fromPrefix.length);
+        const slotNum = parseInt(suffix);
+        if (isNaN(slotNum)) return key;
+        if (slotNum === fromSlot) return null;
+        if (slotNum > fromSlot) return `${fromPrefix}${slotNum - 1}`;
+        return key;
+      });
+
+      // Step 3: Shift destination slots up & insert extracted overrides
+      const shifted = {};
+      for (const mapName of OVERRIDE_MAP_NAMES) {
+        const map = { ...(remapped[mapName] || s[mapName] || {}) };
+        const newMap = {};
+        for (const [key, value] of Object.entries(map)) {
+          if (!key.startsWith(toPrefix)) { newMap[key] = value; continue; }
+          const suffix = key.slice(toPrefix.length);
+          const slotNum = parseInt(suffix);
+          if (isNaN(slotNum)) { newMap[key] = value; continue; }
+          newMap[slotNum >= insertAt ? `${toPrefix}${slotNum + 1}` : key] = value;
+        }
+        if (extracted[mapName] !== undefined) newMap[dstKey] = extracted[mapName];
+        shifted[mapName] = newMap;
+      }
+
+      return { editorDraft: draft, ...shifted };
     });
   },
 
@@ -658,6 +794,20 @@ export const createEditorSlice = (set, get) => ({
     const centerY = (box.y + box.h / 2) * 100;
     return { objectPosition: `${centerX}% ${centerY}%` };
   },
+
+  replacePhotoPreviewUrl: (photoIdx, newUrl) => {
+    get().pushHistory();
+    set((s) => {
+      const images = [...s.images];
+      if (images[photoIdx]) {
+        if (images[photoIdx].previewUrl) URL.revokeObjectURL(images[photoIdx].previewUrl);
+        images[photoIdx] = { ...images[photoIdx], previewUrl: newUrl };
+      }
+      return { images };
+    });
+  },
+
+  setEditorClipboard: (item) => set({ editorClipboard: item }),
 
   setSelectedChapter: (idx) => set({ selectedChapterIndex: idx, selectedSpreadIndex: null }),
   setSelectedSpread: (chapterIdx, spreadIdx) => set({ selectedChapterIndex: chapterIdx, selectedSpreadIndex: spreadIdx }),
@@ -677,9 +827,17 @@ export const createEditorSlice = (set, get) => ({
   enhanceImageAction: async (photoIndex, imageLook, styleHint = '') => {
     const s = get();
     const img = s.images[photoIndex];
-    if (!img?.file) return null;
+    if (!img) return null;
+    // After generation, File objects are stripped to save memory — reconstruct from previewUrl
+    let imageFile = img.file;
+    if (!imageFile && img.previewUrl) {
+      const resp = await fetch(img.previewUrl);
+      const blob = await resp.blob();
+      imageFile = new File([blob], img.name || `photo-${photoIndex}.jpg`, { type: blob.type });
+    }
+    if (!imageFile) return null;
     return enhanceImage({
-      imageFile: img.file,
+      imageFile,
       styleHint,
       imageLook: imageLook || s.imageLook,
       vibe: s.vibe,
@@ -689,23 +847,36 @@ export const createEditorSlice = (set, get) => ({
 
   regenerateTextAction: async (chapterIdx, spreadIdx, field, instruction) => {
     const s = get();
-    const ch = s.editorDraft?.chapters?.[chapterIdx];
-    const spread = ch?.spreads?.[spreadIdx];
-    if (!spread) return null;
+    const SPECIAL_PAGES = { bcf: 'book_cover_front', cov: 'cover', ded: 'dedication', bck: 'back_cover', bcb: 'book_cover_back' };
+    let currentText = '';
+    const contextParts = [`Book: ${s.editorDraft?.title || ''}`];
 
-    set({ isRegenerating: true });
-    try {
-      const contextParts = [`Book: ${s.editorDraft.title}`];
+    if (SPECIAL_PAGES[chapterIdx]) {
+      const pageType = SPECIAL_PAGES[chapterIdx];
+      if ((pageType === 'cover' || pageType === 'book_cover_front') && field === 'heading_text') currentText = s.editorDraft?.title || '';
+      else if (pageType === 'dedication' && field === 'heading_text') currentText = s.editorDraft?.dedication_heading || '';
+      else if (pageType === 'dedication' && field === 'body_text') currentText = s.editorDraft?.dedication || '';
+      else if (pageType === 'back_cover' && field === 'heading_text') currentText = s.editorDraft?.closing_heading || '';
+      else if (pageType === 'back_cover' && field === 'body_text') currentText = s.editorDraft?.closing_page?.text || '';
+      contextParts.push(`Page type: ${pageType}`);
+    } else {
+      const ch = s.editorDraft?.chapters?.[chapterIdx];
+      const spread = ch?.spreads?.[spreadIdx];
+      if (!spread) return null;
+      currentText = spread[field] || '';
       if (ch.title) contextParts.push(`Chapter: ${ch.title}`);
       if (ch.blurb) contextParts.push(`Chapter blurb: ${ch.blurb}`);
       if (spread.heading_text && field !== 'heading_text') contextParts.push(`Heading: ${spread.heading_text}`);
       if (spread.body_text && field !== 'body_text') contextParts.push(`Body: ${spread.body_text.slice(0, 200)}`);
+    }
 
+    set({ isRegenerating: true });
+    try {
       const result = await regenerateText({
-        chapter_index: chapterIdx,
-        spread_index: spreadIdx,
+        chapter_index: typeof chapterIdx === 'number' ? chapterIdx : 0,
+        spread_index: typeof spreadIdx === 'number' ? spreadIdx : 0,
         field_name: field,
-        current_text: spread[field] || '',
+        current_text: currentText,
         instruction,
         context: contextParts.join('. '),
       });

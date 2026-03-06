@@ -1,16 +1,25 @@
-import { Component } from 'react';
+import { Component, type ErrorInfo, type ReactNode } from 'react';
 
-export default class ErrorBoundary extends Component {
-  constructor(props) {
+interface ErrorBoundaryProps {
+  children: ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false, error: null };
   }
 
-  static getDerivedStateFromError(error) {
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return { hasError: true, error };
   }
 
-  componentDidCatch(error, errorInfo) {
+  componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     console.error('ErrorBoundary caught:', error, errorInfo);
   }
 
@@ -26,7 +35,9 @@ export default class ErrorBoundary extends Component {
             </div>
             <h2 className="text-xl font-bold text-gray-200 mb-2">Something went wrong</h2>
             <p className="text-gray-400 mb-6 text-sm">
-              {this.state.error?.message || 'An unexpected error occurred.'}
+              {import.meta.env.DEV
+                ? (this.state.error?.message || 'An unexpected error occurred.')
+                : 'Something unexpected happened. Please try reloading the page.'}
             </p>
             <button
               onClick={() => window.location.reload()}

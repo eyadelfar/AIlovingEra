@@ -1,13 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { CheckCircle } from 'lucide-react';
 import useAuthStore from '../../stores/authStore';
 
 export default function CheckoutSuccess() {
   const { t } = useTranslation('pricing');
-  const [params] = useSearchParams();
-  const sessionId = params.get('session_id');
   const refreshCredits = useAuthStore((s) => s.refreshCredits);
   const profile = useAuthStore((s) => s.profile);
   const [refreshed, setRefreshed] = useState(false);

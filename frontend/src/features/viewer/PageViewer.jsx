@@ -33,7 +33,7 @@ export default function PageViewer({
   }, [onPrev, onNext]);
 
   const direction = currentPage > prevPageRef.current ? 1 : -1;
-  prevPageRef.current = currentPage;
+  useEffect(() => { prevPageRef.current = currentPage; }, [currentPage]);
 
   useEffect(() => {
     if (!thumbStripRef.current) return;

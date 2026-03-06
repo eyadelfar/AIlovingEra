@@ -138,7 +138,7 @@ export function QuoteBlock({ text, style, compact }) {
 const stripFrameClasses = (cls) =>
   cls.split(' ').filter(c => !c.match(/^(border|rounded)/)).join(' ');
 
-function PhotoImgCore({ photo, imgStyle, frame, className, vignetteStyle, grainOpacity, userFilter, blendPhotos, blendRecipe }) {
+function PhotoImgCore({ photo, imgStyle, frame, frameStyle, className, vignetteStyle, grainOpacity, userFilter, blendPhotos, blendRecipe }) {
   // When blending, strip border and rounded classes for seamless edges
   const effectiveFrame = blendPhotos ? stripFrameClasses(frame) : frame;
 
@@ -158,11 +158,11 @@ function PhotoImgCore({ photo, imgStyle, frame, className, vignetteStyle, grainO
   }
 
   return (
-    <div className={`overflow-hidden ${effectiveFrame} relative ${className}`}>
+    <div className={`overflow-hidden ${effectiveFrame} relative ${className}`} style={frameStyle || undefined}>
       <img
         src={photo.previewUrl}
         alt=""
-        className="w-full h-full object-cover"
+        className={`w-full h-full ${blendImgStyle.objectFit ? '' : 'object-cover'}`}
         style={Object.keys(blendImgStyle).length > 0 ? blendImgStyle : undefined}
       />
       {/* Layer 1: Color overlay with mix-blend-mode */}
@@ -220,7 +220,7 @@ function getPageContainer(el) {
   return el?.closest('[class*="aspect-"]') || el?.parentElement;
 }
 
-export function PhotoImg({ photo, photoIndex, style, altFrame, heroFrame, filter, photoAnalyses, cropOverrides, filterOverrides, slotKey, slotIdx, className = '' }) {
+export function PhotoImg({ photo, style, altFrame, heroFrame, filter, cropOverrides, filterOverrides, slotKey, slotIdx, className = '' }) {
   const [lightboxSrc, setLightboxSrc] = useState(null);
   const editMode = useEditMode();
   const selection = useSelection();
@@ -236,21 +236,24 @@ export function PhotoImg({ photo, photoIndex, style, altFrame, heroFrame, filter
       selectedTemplate: s.selectedTemplate,
       bookDraftTemplate: s.bookDraft?.template_slug,
       customTheme: s.customTheme,
+      imageFrameOverrides: s.imageFrameOverrides,
     })),
   );
-  const { globalBlend, blendOverrides, positionOffsets, setPositionOffset, sizeOverrides, setSizeOverride, selectedTemplate, bookDraftTemplate, customTheme } = storeState;
+  const { globalBlend, blendOverrides, positionOffsets, setPositionOffset, sizeOverrides, setSizeOverride, selectedTemplate, bookDraftTemplate, customTheme, imageFrameOverrides } = storeState;
   const templateKey = selectedTemplate || bookDraftTemplate || 'romantic';
   const blendRecipe = templateKey === 'custom' && customTheme?.pageBgColor
     ? buildCustomBlendRecipe(customTheme.pageBgColor)
     : BLEND_RECIPES[templateKey] || BLEND_RECIPES.romantic;
-
-  const frame = heroFrame ? style.photoFrameHero : altFrame ? style.photoFrameAlt : style.photoFrame;
 
   const editChapterIdx = editMode?.chapterIdx;
   const editSpreadIdx = editMode?.spreadIdx;
   const computedSlotKey = (editChapterIdx != null && editSpreadIdx != null && slotIdx != null)
     ? `${editChapterIdx}-${editSpreadIdx}-${slotIdx}`
     : slotKey;
+
+  const templateFrame = heroFrame ? style.photoFrameHero : altFrame ? style.photoFrameAlt : style.photoFrame;
+  const imageFrameOverride = computedSlotKey && imageFrameOverrides?.[computedSlotKey];
+  const frame = imageFrameOverride ? imageFrameOverride.classes : templateFrame;
 
   const userFilter = computedSlotKey && filterOverrides?.[computedSlotKey];
   const effectiveFilter = userFilter ? buildFilterCSS(userFilter) : filter;
@@ -259,7 +262,10 @@ export function PhotoImg({ photo, photoIndex, style, altFrame, heroFrame, filter
   const imgStyle = {};
   if (effectiveFilter) imgStyle.filter = effectiveFilter;
 
-  if (userCrop) {
+  // When cropped (zoom >= 1), use object-cover + transform to match the crop modal preview.
+  // When uncropped, use object-contain to show the full image without clipping.
+  if (userCrop && userCrop.zoom > 1) {
+    imgStyle.objectFit = 'cover';
     imgStyle.transform = `scale(${userCrop.zoom}) translate(${userCrop.panX}%, ${userCrop.panY}%)`;
     imgStyle.transformOrigin = 'center';
   }
@@ -298,22 +304,32 @@ export function PhotoImg({ photo, photoIndex, style, altFrame, heroFrame, filter
     const startX = e.clientX;
     const startY = e.clientY;
 
+    el.style.willChange = 'width, height';
+
+    let rafId = null;
     function onMove(ev) {
-      let dx = ev.clientX - startX;
-      let dy = ev.clientY - startY;
-      let newW = startW;
+      if (rafId) cancelAnimationFrame(rafId);
+      const cx = ev.clientX, cy = ev.clientY;
+      rafId = requestAnimationFrame(() => {
+        let dx = cx - startX;
+        let dy = cy - startY;
+        let newW = startW;
 
-      if (corner.includes('right')) newW = startW + dx;
-      else if (corner.includes('left')) newW = startW - dx;
-      else newW = startW + (corner.includes('bottom') ? dy * aspect : -dy * aspect);
+        if (corner.includes('right')) newW = startW + dx;
+        else if (corner.includes('left')) newW = startW - dx;
+        else newW = startW + (corner.includes('bottom') ? dy * aspect : -dy * aspect);
 
-      newW = Math.max(MIN_SIZE, newW);
-      const newH = newW / aspect;
-      el.style.width = `${newW}px`;
-      el.style.height = `${newH}px`;
+        newW = Math.max(MIN_SIZE, newW);
+        const newH = newW / aspect;
+        el.style.width = `${newW}px`;
+        el.style.height = `${newH}px`;
+        rafId = null;
+      });
     }
 
     function onUp() {
+      if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+      el.style.willChange = '';
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       // Persist final size as percentage of page container
@@ -331,7 +347,6 @@ export function PhotoImg({ photo, photoIndex, style, altFrame, heroFrame, filter
   }, [computedSlotKey, setSizeOverride]);
 
   // Drag-to-move handler (only when selected)
-  const dragRef = useRef(null);
   const handleDragStart = useCallback((e) => {
     if (!isSelected) return;
     // Don't drag if clicking a resize handle
@@ -348,24 +363,34 @@ export function PhotoImg({ photo, photoIndex, style, altFrame, heroFrame, filter
     const cw = containerRect?.width || 400;
     const ch = containerRect?.height || 560;
 
+    const el = containerRef.current;
+    if (el) el.style.willChange = 'transform';
+
+    let rafId = null;
     function onMove(ev) {
-      const dx = ev.clientX - startX;
-      const dy = ev.clientY - startY;
-      const el = containerRef.current;
-      if (el) {
-        const newXPct = existing.xPct + (dx / cw) * 100;
-        const newYPct = existing.yPct + (dy / ch) * 100;
-        el.style.transform = `translate(${newXPct}%, ${newYPct}%)`;
-      }
+      if (rafId) cancelAnimationFrame(rafId);
+      const cx = ev.clientX, cy = ev.clientY;
+      rafId = requestAnimationFrame(() => {
+        const el = containerRef.current;
+        if (el) {
+          const newXPct = existing.xPct + ((cx - startX) / cw) * 100;
+          const newYPct = existing.yPct + ((cy - startY) / ch) * 100;
+          el.style.transform = `translate(${newXPct}%, ${newYPct}%)`;
+        }
+        rafId = null;
+      });
     }
 
     function onUp(ev) {
+      if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
       const dx = ev.clientX - startX;
       const dy = ev.clientY - startY;
       setPositionOffset(computedSlotKey, {
         xPct: existing.xPct + (dx / cw) * 100,
         yPct: existing.yPct + (dy / ch) * 100,
       });
+      const el = containerRef.current;
+      if (el) el.style.willChange = '';
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
     }
@@ -390,10 +415,12 @@ export function PhotoImg({ photo, photoIndex, style, altFrame, heroFrame, filter
       <div
         ref={containerRef}
         data-selectable
+        data-slot-key={computedSlotKey}
+        data-slot-idx={slotIdx}
         style={offsetStyle}
-        className={`relative transition-all duration-150 ${
+        className={`relative transition-[box-shadow,outline,ring-color] duration-150 ${
           isSelected
-            ? 'ring-2 ring-violet-500 ring-offset-1 ring-offset-transparent z-10 cursor-grab active:cursor-grabbing'
+            ? 'ring-2 ring-violet-500 ring-offset-1 ring-offset-transparent z-30 cursor-grab active:cursor-grabbing'
             : 'hover:ring-1 hover:ring-violet-400/40 cursor-pointer'
         }`}
         onClick={(e) => {
@@ -406,6 +433,7 @@ export function PhotoImg({ photo, photoIndex, style, altFrame, heroFrame, filter
           photo={photo}
           imgStyle={imgStyle}
           frame={frame}
+          frameStyle={imageFrameOverride?.style}
           className={className}
           vignetteStyle={vignetteStyle}
           grainOpacity={grainOpacity}
@@ -480,9 +508,11 @@ export function PhotoImg({ photo, photoIndex, style, altFrame, heroFrame, filter
   );
 }
 
-export default function PageShell({ style, children, className = '' }) {
+export default function PageShell({ style, children, className = '', chapterIdx, spreadIdx }) {
   const pageSize = useBookStore(s => s.designScale)?.pageSize;
   const customPageSize = useBookStore(s => s.customPageSize);
+  const bookPageFrame = useBookStore(s => s.bookPageFrame);
+  const pageFrameOverrides = useBookStore(s => s.pageFrameOverrides);
   const isCustom = pageSize === 'custom' && customPageSize?.width > 0 && customPageSize?.height > 0;
   const aspectClass = isCustom ? '' : getPageAspect(pageSize);
   const inlineAspect = isCustom ? { aspectRatio: `${customPageSize.width} / ${customPageSize.height}` } : {};
@@ -494,12 +524,18 @@ export default function PageShell({ style, children, className = '' }) {
   if (style._bodyColor) shellStyle['--custom-body'] = style._bodyColor;
   if (style._accentColor) shellStyle['--custom-accent'] = style._accentColor;
 
+  // Page frame: per-page override wins over book default
+  const pageKey = chapterIdx != null && spreadIdx != null ? `${chapterIdx}-${spreadIdx}` : null;
+  const pageFrame = (pageKey && pageFrameOverrides?.[pageKey]) || bookPageFrame;
+  if (pageFrame?.style) Object.assign(shellStyle, pageFrame.style);
+  const pageFrameClasses = pageFrame?.classes || '';
+
   const customColorClasses = style._headingColor
     ? '[&_h3]:[color:var(--custom-heading)] [&_h2]:[color:var(--custom-heading)] [&_p:not([data-ts=caption])]:[color:var(--custom-body)]'
     : '';
 
   return (
-    <div className={`${aspectClass} ${style.pageBg} rounded-xl overflow-hidden border ${style.pageBorder} relative ${style.pageTexture} ${customColorClasses} ${className}`} style={shellStyle}>
+    <div className={`${aspectClass} ${style.pageBg} rounded-xl overflow-hidden border ${style.pageBorder} relative ${style.pageTexture} ${customColorClasses} ${pageFrameClasses} ${className}`} style={shellStyle}>
       <PageBgPattern bgPattern={style.bgPattern} />
       {style.cornerOrnament && (
         <PageOrnaments templateType={style.cornerOrnament} stroke={style.ornamentStroke} fill={style.ornamentFill} />

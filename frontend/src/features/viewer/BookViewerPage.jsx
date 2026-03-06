@@ -1,14 +1,15 @@
-import { useEffect, useMemo } from 'react';
+import { lazy, Suspense, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Lock, Sparkles } from 'lucide-react';
 import useBookStore from '../../stores/bookStore';
 import { buildPageToSpreadMap } from '../../lib/gridUtils';
 import PageViewer from './PageViewer';
-import BookSpreadViewer from './BookSpreadViewer';
+const BookSpreadViewer = lazy(() => import('./BookSpreadViewer'));
 import LoveLetterPage from './LoveLetterPage';
 import MiniReelStoryboard from './MiniReelStoryboard';
 import ViewerEditToolbar from './ViewerEditToolbar';
+import LoadingSpinner from '../shared/LoadingSpinner';
 import { EditModeProvider } from './EditModeContext';
 
 export default function BookViewerPage() {
@@ -55,18 +56,24 @@ export default function BookViewerPage() {
     }
   }, [isEditMode, editorDraft, bookDraft, initEditor]);
 
-  useEffect(() => {
-    if (!bookDraft) navigate('/create');
-  }, [bookDraft, navigate]);
-
-  if (!bookDraft) return null;
-
   const activeDraft = isEditMode && editorDraft ? editorDraft : bookDraft;
 
   const pageToSpreadMap = useMemo(
-    () => buildPageToSpreadMap(activeDraft.chapters || []),
-    [activeDraft.chapters],
+    () => buildPageToSpreadMap(activeDraft?.chapters || []),
+    [activeDraft?.chapters],
   );
+
+  useEffect(() => {
+    if (!bookDraft) {
+      // Small delay to avoid redirect during transient state (e.g. route transitions)
+      const timer = setTimeout(() => {
+        if (!useBookStore.getState().bookDraft) navigate('/create');
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [bookDraft, navigate]);
+
+  if (!bookDraft) return null;
 
   function handleCreateAnother() {
     if (!window.confirm(t('createNewBookConfirm'))) return;
@@ -170,7 +177,9 @@ export default function BookViewerPage() {
         )}
 
         {viewMode === 'spread' ? (
-          <BookSpreadViewer {...sharedProps} currentPage={currentPage} onGoToPage={setCurrentPage} />
+          <Suspense fallback={<div className="flex items-center justify-center h-full"><LoadingSpinner size="lg" /></div>}>
+            <BookSpreadViewer {...sharedProps} currentPage={currentPage} onGoToPage={setCurrentPage} />
+          </Suspense>
         ) : (
           <PageViewer
             {...sharedProps}

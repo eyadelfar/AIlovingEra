@@ -1,5 +1,5 @@
 import toast from 'react-hot-toast';
-import { fetchAIQuestions, regenerateText } from '../api/bookApi';
+import { fetchAIQuestions, fetchAIQuestionsStream, regenerateText } from '../api/bookApi';
 
 export const createQuestionsSlice = (set, get) => ({
   aiQuestions: [],
@@ -10,6 +10,8 @@ export const createQuestionsSlice = (set, get) => ({
   _questionRevealTimer: null,
   rephrasingQuestionId: null,
   isRephrasingStory: false,
+  /** Real progress from SSE: { stage, message, progress } */
+  questionLoadingStage: null,
 
   rephraseStory: async () => {
     const s = get();
@@ -43,20 +45,29 @@ export const createQuestionsSlice = (set, get) => ({
     }
   },
 
-  fetchQuestions: async () => {
+  fetchQuestions: async (questionCount = 6) => {
     const s = get();
     if (s.isLoadingQuestions || s.aiQuestions.length > 0) return;
     // Clear any existing timer before starting
     get().cleanupQuestionTimers();
-    set({ isLoadingQuestions: true, visibleQuestionCount: 0 });
+    set({ isLoadingQuestions: true, visibleQuestionCount: 0, questionLoadingStage: null });
     try {
-      const result = await fetchAIQuestions({
-        images: s.images,
-        partnerNames: s.partnerNames,
-        relationshipType: 'couple',
-      });
-      const questions = result.questions || [];
-      set({ aiQuestions: questions, isLoadingQuestions: false });
+      const result = await fetchAIQuestionsStream(
+        {
+          images: s.images,
+          partnerNames: s.partnerNames,
+          relationshipType: 'couple',
+          questionCount,
+        },
+        // onProgress — receives real SSE events from backend
+        (event) => {
+          if (event.stage !== 'complete') {
+            set({ questionLoadingStage: event });
+          }
+        },
+      );
+      const questions = result?.questions || [];
+      set({ aiQuestions: questions, isLoadingQuestions: false, questionLoadingStage: null });
       // Start progressive reveal
       if (questions.length > 0) {
         set({ visibleQuestionCount: 1 });
@@ -73,7 +84,7 @@ export const createQuestionsSlice = (set, get) => ({
         set({ _questionRevealTimer: timer });
       }
     } catch {
-      set({ aiQuestions: [], isLoadingQuestions: false });
+      set({ aiQuestions: [], isLoadingQuestions: false, questionLoadingStage: null });
     }
   },
 
@@ -179,6 +190,6 @@ export const createQuestionsSlice = (set, get) => ({
   skipAllQuestions: () => {
     const timer = get()._questionRevealTimer;
     if (timer) clearInterval(timer);
-    set({ questionAnswers: {}, _questionRevealTimer: null, visibleQuestionCount: get().aiQuestions.length });
+    set({ aiQuestions: [], questionAnswers: {}, _questionRevealTimer: null, visibleQuestionCount: 0 });
   },
 });

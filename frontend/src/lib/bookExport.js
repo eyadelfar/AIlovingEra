@@ -13,6 +13,10 @@ async function compressAndEncodeImage(imageObj, index, total, onProgress) {
   onProgress?.({ stage: 'compressing', current: index + 1, total });
 
   const file = imageObj.file;
+  if (!file) {
+    // Image has no file (e.g. AI-generated with URL only) — skip encoding
+    return { id: imageObj.id, name: imageObj.name || 'image', mimeType: 'image/jpeg', data: '' };
+  }
   const arrayBuffer = await file.arrayBuffer();
 
   // Small files: skip canvas, just base64 the raw bytes

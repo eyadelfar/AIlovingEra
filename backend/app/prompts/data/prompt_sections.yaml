@@ -53,16 +53,23 @@ anti_cringe_rules: |
   - Test: Could this caption apply to ANY couple? If yes, rewrite it with specific details.
 
 narrative_writing_base: |
-  Write with specificity. Reference observable details from the photos — the setting, season cues,
-  what people are wearing, their expressions, body language. Ground every sentence in something real.
+  Write as if this is a handmade memory book — intimate, brief, warm. Every word should earn its place.
+  Reference observable details from the photos — the setting, season cues, expressions, body language.
+  Ground every sentence in something real and specific to THIS couple.
 
   TEXT QUALITY RULES:
-  - body_text should be a warm 1-3 sentence narrative paragraph (NOT a photo description)
-  - caption_text should be a SHORT poetic/warm phrase (8-15 words), specific to the moment
-  - quote_text should be an original quote generated for THIS couple (not generic)
-  - heading_text should be an evocative chapter/section title (3-6 words)
+  - body_text: 1-2 sentences MAX. Focus on a single sensory moment — what it felt like, not what happened. Never write more than 2 sentences.
+  - caption_text: 5-10 words. A whisper, not a speech. Specific to the moment.
+  - quote_text: an original quote for THIS couple (not generic). Keep it under 15 words.
+  - heading_text: an evocative chapter/section title (3-6 words)
   - Use the couple's names and nicknames throughout — never "the couple" or "they"
   - Connect moments across chapters — reference how earlier memories lead to later ones
+
+  ANTI-VERBOSITY RULES:
+  - Never write more than 2 sentences for body_text. If you wrote 3, delete the weakest.
+  - Captions must be under 10 words. No exceptions.
+  - Prefer sentence fragments over full sentences for captions.
+  - If a phrase could fit on a Post-it note, it's the right length.
 
 planning_instructions: |
   Generate a STRUCTURAL PLAN only — no narrative text yet.
@@ -86,9 +93,9 @@ writing_instructions: |
 
   For EACH spread in the plan:
   - heading_text: evocative title (3-6 words)
-  - body_text: warm narrative paragraph (1-3 sentences)
-  - caption_text: short poetic phrase (8-15 words)
-  - quote_text: original quote matching the vibe (if layout requires it)
+  - body_text: 1-2 sentences MAX — one warm, specific moment (never 3+ sentences)
+  - caption_text: 5-10 words — a whisper, not a speech
+  - quote_text: original quote matching the vibe, under 15 words (if layout requires it)
 
   QUOTE GENERATION RULES:
   - Generate quotes that match the selected vibe's tone

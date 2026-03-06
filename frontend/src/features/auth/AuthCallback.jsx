@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../../lib/supabase';
 import { processReferral } from '../../api/referralApi';
+import useAuthStore from '../../stores/authStore';
 import LoadingSpinner from '../shared/LoadingSpinner';
 
 export default function AuthCallback() {
@@ -26,14 +27,24 @@ export default function AuthCallback() {
       }
     }
 
-    // Supabase handles the hash fragment automatically
-    // The onAuthStateChange listener in authStore will pick up the session
-    const timer = setTimeout(async () => {
-      await handlePendingReferral();
-      navigate('/create');
-    }, 2000);
+    // Wait for actual auth state instead of a fixed timeout
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        await handlePendingReferral();
+        navigate('/create', { replace: true });
+      }
+    });
 
-    return () => clearTimeout(timer);
+    // Fallback timeout in case auth event never fires (e.g., user navigated here directly)
+    const fallback = setTimeout(() => {
+      const user = useAuthStore.getState().user;
+      navigate(user ? '/create' : '/login', { replace: true });
+    }, 5000);
+
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(fallback);
+    };
   }, [navigate]);
 
   return (

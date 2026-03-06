@@ -13,7 +13,6 @@ export default function EditorToolbar({ onToggleSidebar }) {
   const undo = useBookStore(s => s.undo);
   const redo = useBookStore(s => s.redo);
   const commitEditorDraft = useBookStore(s => s.commitEditorDraft);
-  const bookDraft = useBookStore(s => s.bookDraft);
   const editorDraft = useBookStore(s => s.editorDraft);
   const images = useBookStore(s => s.images);
   const selectedTemplate = useBookStore(s => s.selectedTemplate);

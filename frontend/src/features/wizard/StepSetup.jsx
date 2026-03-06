@@ -1,31 +1,19 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
-import {
-  Heart, CloudRain, Laugh, Zap, Film, Gem,
-  ChevronDown, ChevronRight, Store,
-} from 'lucide-react';
+import { ChevronDown, Store } from 'lucide-react';
+import { VIBE_ICONS } from './vibeIcons';
 import { fetchTemplates } from '../../api/bookApi';
 import useBookStore from '../../stores/bookStore';
 import {
   STRUCTURE_TEMPLATES, OCCASIONS, VIBES,
   IMAGE_LOOKS, PAGE_SIZES, ADD_ONS, TEMPLATE_DEFAULTS, IMAGE_DENSITIES,
+  estimatePageCount,
 } from '../../lib/constants';
-import { IMAGE_LOOK_CSS_FILTERS } from '../../lib/previewFilters';
 import TemplateCard from './TemplateCard';
-import SamplePhoto from './SamplePhoto';
 import LoadingSpinner from '../shared/LoadingSpinner';
-
-const VIBE_ICONS = {
-  romantic_warm: Heart,
-  bittersweet_lovely: CloudRain,
-  playful_meme: Laugh,
-  comic_illustrated: Zap,
-  cinematic_poetic: Film,
-  minimal_luxury: Gem,
-};
 
 const sectionVariants = {
   hidden: { height: 0, opacity: 0, overflow: 'hidden' },
@@ -144,25 +132,6 @@ function DensityIcon({ type, isSelected }) {
   );
 }
 
-function PhotoLookThumbnail({ lookValue, previewUrl }) {
-  const filter = IMAGE_LOOK_CSS_FILTERS[lookValue] || 'none';
-
-  return (
-    <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 border border-gray-700">
-      {previewUrl ? (
-        <img
-          src={previewUrl}
-          alt=""
-          className="w-full h-full object-cover"
-          style={{ filter }}
-        />
-      ) : (
-        <SamplePhoto cssFilter={filter} className="w-full h-full" />
-      )}
-    </div>
-  );
-}
-
 function SettingsSummary({
   selectedTemplate, templates, vibe, imageLook,
   designScale, images, isAutoPageCount, partnerNames,
@@ -225,11 +194,6 @@ function SettingsSummary({
   );
 }
 
-function estimatePageCount(numPhotos) {
-  const base = Math.max(8, Math.round(numPhotos * 1.2));
-  return Math.min(200, base + 4);
-}
-
 export default function StepSetup() {
   const { t } = useTranslation('wizard');
   const [templates, setTemplates] = useState([]);
@@ -240,7 +204,6 @@ export default function StepSetup() {
     format: true,
     extras: false,
   });
-  const [showPhotoLookCustomize, setShowPhotoLookCustomize] = useState(false);
 
   const selectedTemplate = useBookStore(s => s.selectedTemplate);
   const setTemplate = useBookStore(s => s.setTemplate);
@@ -293,7 +256,6 @@ export default function StepSetup() {
     const defaults = TEMPLATE_DEFAULTS[slug];
     if (defaults?.imageLook) {
       setImageLook(defaults.imageLook);
-      setShowPhotoLookCustomize(false);
     }
   }
 
@@ -330,7 +292,7 @@ export default function StepSetup() {
         <div className="border-b border-gray-800">
           <SectionHeader
             title={t('designStyle')}
-            subtitle={selectedTemplate ? `${selectedTemplate} \u00B7 ${IMAGE_LOOKS.find(l => l.value === imageLook)?.label || t('lookNatural')} ${t('photos')}` : t('chooseATemplate')}
+            subtitle={selectedTemplate || t('chooseATemplate')}
             isOpen={openSections.design}
             onToggle={() => toggleSection('design')}
           />
@@ -390,60 +352,6 @@ export default function StepSetup() {
                       ))}
                     </div>
                   </div>
-
-                  {selectedTemplate && (
-                    <div>
-                      <button
-                        onClick={() => setShowPhotoLookCustomize(prev => !prev)}
-                        className="flex items-center gap-2 text-sm text-gray-400 hover:text-gray-300 transition-colors"
-                      >
-                        <ChevronRight
-                          className={`h-4 w-4 transition-transform ${showPhotoLookCustomize ? 'rotate-90' : ''}`}
-                        />
-                        {t('customizePhotoStyle')}
-                        <span className="text-xs text-gray-600">
-                          ({t('currently')}: {t(IMAGE_LOOKS.find(l => l.value === imageLook)?.i18nLabel || 'lookNatural')})
-                        </span>
-                      </button>
-                      <AnimatePresence initial={false}>
-                        {showPhotoLookCustomize && (
-                          <motion.div
-                            key="photo-look-content"
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: 'auto', opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            transition={{ duration: 0.2, ease: 'easeInOut' }}
-                            className="overflow-hidden"
-                          >
-                            <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
-                              {IMAGE_LOOKS.map(look => (
-                                <button
-                                  key={look.value}
-                                  onClick={() => setImageLook(look.value)}
-                                  className={`flex items-start gap-3 px-3 py-3 rounded-xl text-start transition-all border ${
-                                    imageLook === look.value
-                                      ? 'border-rose-500 bg-rose-500/10 ring-1 ring-rose-500/30'
-                                      : 'border-gray-700 bg-gray-900/40 hover:border-gray-600'
-                                  }`}
-                                >
-                                  <PhotoLookThumbnail
-                                    lookValue={look.value}
-                                    previewUrl={previewPhoto}
-                                  />
-                                  <div className="min-w-0 flex-1">
-                                    <span className={`block text-sm font-medium ${imageLook === look.value ? 'text-rose-300' : 'text-gray-300'}`}>
-                                      {t(look.i18nLabel)}
-                                    </span>
-                                    <span className="block text-xs text-gray-500 mt-0.5">{t(look.i18nDesc)}</span>
-                                  </div>
-                                </button>
-                              ))}
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
-                  )}
                 </div>
               </motion.div>
             )}

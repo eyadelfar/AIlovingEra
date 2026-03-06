@@ -1,13 +1,18 @@
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useShallow } from 'zustand/shallow';
 import { useTranslation } from 'react-i18next';
 import useBookStore from '../../stores/bookStore';
 import { downloadBookPdf } from '../../api/bookApi';
 import { exportBook, downloadBookExport } from '../../lib/bookExport';
+import { embedBookData } from '../../lib/bookContainerIO';
+// videoExporter dynamically imported at call site to avoid html2canvas in main bundle
 import LoadingSpinner from '../shared/LoadingSpinner';
 import BaseModal from '../shared/BaseModal';
+import VideoExportModal from './VideoExportModal';
 import { AboutYouSection, BookFormatSection, ExtrasSection } from '../wizard/SetupSections';
 import toast from 'react-hot-toast';
+import PageFramePickerPanel from './PageFramePickerPanel';
 
 const THEMES = [
   { value: 'romantic', labelKey: 'themeRomantic', dot: 'bg-rose-500' },
@@ -34,12 +39,13 @@ export default function ViewerEditToolbar() {
       undo: s.undo,
       redo: s.redo,
       commitEditorDraft: s.commitEditorDraft,
-      setUseOriginalPhotos: s.setUseOriginalPhotos,
       setBlendPhotos: s.setBlendPhotos,
       setTemplate: s.setTemplate,
       setCustomTheme: s.setCustomTheme,
       setTemplateWithHistory: s.setTemplateWithHistory,
       setCustomThemeWithHistory: s.setCustomThemeWithHistory,
+      setPageFrameOverride: s.setPageFrameOverride,
+      setBookPageFrame: s.setBookPageFrame,
     })),
   );
   const state = useBookStore(
@@ -48,7 +54,6 @@ export default function ViewerEditToolbar() {
       editorHistoryLen: s.editorHistory.length,
       editorFutureLen: s.editorFuture.length,
       editorDirty: s.editorDirty,
-      useOriginalPhotos: s.useOriginalPhotos,
       blendPhotos: s.blendPhotos,
       bookDraft: s.bookDraft,
       images: s.images,
@@ -58,26 +63,25 @@ export default function ViewerEditToolbar() {
       photoAnalyses: s.photoAnalyses,
       previewOnly: s.previewOnly,
       customTheme: s.customTheme,
-      cropOverrides: s.cropOverrides,
-      filterOverrides: s.filterOverrides,
-      textStyleOverrides: s.textStyleOverrides,
-      positionOffsets: s.positionOffsets,
-      blendOverrides: s.blendOverrides,
-      sizeOverrides: s.sizeOverrides,
       getCommittedOverrides: s.getCommittedOverrides,
+      pageFrameOverrides: s.pageFrameOverrides,
+      bookPageFrame: s.bookPageFrame,
+      selectedChapterIndex: s.selectedChapterIndex,
+      selectedSpreadIndex: s.selectedSpreadIndex,
     })),
   );
   const {
     toggleEditMode, undo, redo, commitEditorDraft,
-    setUseOriginalPhotos, setBlendPhotos, setTemplate, setCustomTheme,
+    setBlendPhotos, setTemplate, setCustomTheme,
     setTemplateWithHistory, setCustomThemeWithHistory,
+    setPageFrameOverride, setBookPageFrame,
   } = actions;
   const {
     isEditMode, editorHistoryLen, editorFutureLen, editorDirty,
-    useOriginalPhotos, blendPhotos, previewOnly, bookDraft, images, selectedTemplate,
+    blendPhotos, previewOnly, bookDraft, images, selectedTemplate,
     designScale, customPageSize, photoAnalyses, customTheme,
-    cropOverrides, filterOverrides, textStyleOverrides, positionOffsets, blendOverrides,
-    sizeOverrides, getCommittedOverrides,
+    getCommittedOverrides, pageFrameOverrides, bookPageFrame,
+    selectedChapterIndex, selectedSpreadIndex,
   } = state;
   const setupState = useBookStore(
     useShallow(s => ({
@@ -85,6 +89,8 @@ export default function ViewerEditToolbar() {
       occasion: s.occasion,
       vibe: s.vibe,
       imageDensity: s.imageDensity,
+      customDensityCount: s.customDensityCount,
+      customPageSize: s.customPageSize,
       addOns: s.addOns,
       includeQuotes: s.includeQuotes,
     })),
@@ -95,7 +101,9 @@ export default function ViewerEditToolbar() {
       setOccasion: s.setOccasion,
       setVibe: s.setVibe,
       setDesignScale: s.setDesignScale,
+      setCustomPageSize: s.setCustomPageSize,
       setImageDensity: s.setImageDensity,
+      setCustomDensityCount: s.setCustomDensityCount,
       setAddOn: s.setAddOn,
       setIncludeQuotes: s.setIncludeQuotes,
     })),
@@ -103,6 +111,11 @@ export default function ViewerEditToolbar() {
   const [showThemePicker, setShowThemePicker] = useState(false);
   const [showCustomPanel, setShowCustomPanel] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showPageFramePicker, setShowPageFramePicker] = useState(false);
+  const pageFramePickerRef = useRef(null);
+
+  // Snapshot settings on open so we can revert on close-without-Done
+  const [settingsSnapshot, setSettingsSnapshot] = useState(null);
   const themePickerRef = useRef(null);
 
   const activeTheme = selectedTemplate || bookDraft?.template_slug || 'romantic';
@@ -114,6 +127,13 @@ export default function ViewerEditToolbar() {
   const [downloadEta, setDownloadEta] = useState(null);
   const downloadTimerRef = useRef(null);
   const downloadAbortRef = useRef(null);
+
+  // Abort in-flight download if component unmounts
+  useEffect(() => {
+    return () => {
+      downloadAbortRef.current?.abort();
+    };
+  }, []);
 
   // Close theme picker on click outside
   useEffect(() => {
@@ -157,6 +177,9 @@ export default function ViewerEditToolbar() {
     setDownloadProgress(0);
     setDownloadEta(null);
     try {
+      // Pre-generate book JSON for embedding into the PDF
+      const bookJsonString = await exportBook();
+
       await downloadBookPdf({
         draft: bookDraft,
         images,
@@ -172,6 +195,7 @@ export default function ViewerEditToolbar() {
         blendOverrides: pdfBlendOverrides,
         sizeOverrides: pdfSizeOverrides,
         signal: controller.signal,
+        transformBlob: (blob) => embedBookData(blob, bookJsonString),
         onProgress: ({ stage, current, total, message, progress, estimated_remaining_ms }) => {
           // Use detailed message from backend if available
           if (message) {
@@ -215,6 +239,11 @@ export default function ViewerEditToolbar() {
 
   const [isSaving, setIsSaving] = useState(false);
   const [saveStage, setSaveStage] = useState('');
+  const [showSaveMenu, setShowSaveMenu] = useState(false);
+  const saveMenuRef = useRef(null);
+  const [isExportingVideo, setIsExportingVideo] = useState(false);
+  const [videoProgress, setVideoProgress] = useState(0);
+  const [showVideoModal, setShowVideoModal] = useState(false);
 
   async function handleSaveProject() {
     setIsSaving(true);
@@ -234,19 +263,78 @@ export default function ViewerEditToolbar() {
     }
   }
 
-  const addPhotoRef = useRef(null);
-
-  function handleAddPhoto(e) {
-    const files = Array.from(e.target.files || []);
-    const addImageToBook = useBookStore.getState().addImageToBook;
-    files.forEach(file => addImageToBook(file));
-    e.target.value = '';
-    toast.success(files.length !== 1 ? t('addedPhotosPlural', { count: files.length }) : t('addedPhotos', { count: files.length }));
-  }
-
   function handleSave() {
     commitEditorDraft();
     toast.success(t('changesSaved'));
+  }
+
+  // Close save menu on click outside
+  useEffect(() => {
+    if (!showSaveMenu) return;
+    function handleClick(e) {
+      if (saveMenuRef.current && !saveMenuRef.current.contains(e.target)) {
+        setShowSaveMenu(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [showSaveMenu]);
+
+  async function handleExportVideo({ duration: secPerPage, resolution }) {
+    setShowVideoModal(false);
+
+    if (isEditMode && editorDirty) commitEditorDraft();
+
+    const pages = bookDraft?.pages || [];
+    if (!pages.length) {
+      toast.error(t('noContentToExport') || 'No content to export');
+      return;
+    }
+
+    setIsExportingVideo(true);
+    setVideoProgress(0);
+    toast(t('capturingPages') || 'Capturing book pages...', { icon: '\uD83D\uDCF7', duration: 2000 });
+
+    try {
+      const overrides = getCommittedOverrides();
+      const { exportBookVideo } = await import('../../lib/videoExporter');
+      const rawBlob = await exportBookVideo({
+        pages,
+        images,
+        templateSlug: selectedTemplate || bookDraft?.template_slug || 'romantic',
+        photoAnalyses,
+        cropOverrides: overrides.cropOverrides,
+        filterOverrides: overrides.filterOverrides,
+        anniversaryCoverText: bookDraft?.anniversary_cover_text,
+        chapters: bookDraft?.chapters,
+        secPerPage,
+        resolution,
+        onProgress: (p) => setVideoProgress(p),
+      });
+
+      // Embed book JSON data into the video file
+      setVideoProgress(92);
+      const jsonString = await exportBook(({ stage, current, total }) => {
+        if (stage === 'compressing') setVideoProgress(92 + Math.round((current / total) * 6));
+      });
+      const blob = await embedBookData(rawBlob, jsonString);
+
+      setVideoProgress(100);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${bookDraft?.title || 'memory-book'}.webm`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success(t('videoExported') || 'Video exported!');
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        toast.error(err.message || t('videoExportFailed') || 'Video export failed');
+      }
+    } finally {
+      setIsExportingVideo(false);
+      setVideoProgress(0);
+    }
   }
 
   return (
@@ -297,18 +385,21 @@ export default function ViewerEditToolbar() {
               {t('save')}
             </button>
             <button
-              onClick={() => addPhotoRef.current?.click()}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium border border-blue-500/30 text-blue-400 hover:bg-blue-500/10 transition-all flex items-center gap-1"
-              title={t('addPhotosToBook')}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-              </svg>
-              {t('photo')}
-            </button>
-            <input ref={addPhotoRef} type="file" accept="image/*" multiple className="hidden" onChange={handleAddPhoto} />
-            <button
-              onClick={() => setShowSettings(true)}
+              onClick={() => {
+                // Snapshot current settings so we can revert if user closes without Done
+                setSettingsSnapshot({
+                  partnerNames: [...setupState.partnerNames],
+                  occasion: setupState.occasion,
+                  vibe: setupState.vibe,
+                  designScale: { ...designScale },
+                  customPageSize: { ...setupState.customPageSize },
+                  imageDensity: setupState.imageDensity,
+                  customDensityCount: setupState.customDensityCount,
+                  addOns: { ...setupState.addOns },
+                  includeQuotes: setupState.includeQuotes,
+                });
+                setShowSettings(true);
+              }}
               className="px-2 py-1.5 rounded-lg text-xs font-medium border border-gray-700 text-gray-400 hover:border-gray-600 hover:text-gray-300 transition-all"
               title={t('settings') || 'Settings'}
             >
@@ -317,40 +408,46 @@ export default function ViewerEditToolbar() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
             </button>
+            <button
+              onClick={() => setBlendPhotos(!blendPhotos)}
+              title={blendPhotos ? t('disablePhotoBlending') : t('blendPhotosIntoPage')}
+              className={`px-2 py-1.5 rounded-lg text-xs font-medium transition-all border ${
+                blendPhotos
+                  ? 'border-amber-500/30 bg-amber-500/10 text-amber-300'
+                  : 'border-gray-700 text-gray-500 hover:border-gray-600'
+              }`}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+              </svg>
+            </button>
+            <button
+              onClick={() => setShowPageFramePicker(prev => !prev)}
+              title={t('pageFrame', 'Page Frame')}
+              className={`px-2 py-1.5 rounded-lg text-xs font-medium transition-all border ${
+                showPageFramePicker
+                  ? 'border-violet-500/30 bg-violet-500/10 text-violet-300'
+                  : 'border-gray-700 text-gray-500 hover:border-gray-600'
+              }`}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4h16v16H4V4zm2 2v12h12V6H6z" />
+              </svg>
+            </button>
           </>
         )}
 
         <div className="w-px h-5 bg-gray-700" />
 
-        <button
-          onClick={() => setUseOriginalPhotos(!useOriginalPhotos)}
-          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
-            useOriginalPhotos
-              ? 'border-gray-500 bg-gray-500/10 text-gray-300'
-              : 'border-rose-500/30 bg-rose-500/10 text-rose-300'
-          }`}
-        >
-          {useOriginalPhotos ? t('original') : t('styled')}
-        </button>
-
-        <button
-          onClick={() => setBlendPhotos(!blendPhotos)}
-          title={blendPhotos ? t('disablePhotoBlending') : t('blendPhotosIntoPage')}
-          className={`px-2 py-1.5 rounded-lg text-xs font-medium transition-all border ${
-            blendPhotos
-              ? 'border-amber-500/30 bg-amber-500/10 text-amber-300'
-              : 'border-gray-700 text-gray-500 hover:border-gray-600'
-          }`}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
-          </svg>
-        </button>
-
         {isEditMode && (
           <div ref={themePickerRef} className="relative">
             <button
-              onClick={() => setShowThemePicker(!showThemePicker)}
+              onClick={() => {
+                const opening = !showThemePicker;
+                setShowThemePicker(opening);
+                // Auto-show custom panel when theme is already 'custom'
+                if (opening && activeTheme === 'custom') setShowCustomPanel(true);
+              }}
               title={t('changeTheme')}
               className={`px-2 py-1.5 rounded-lg text-xs font-medium transition-all border flex items-center gap-1.5 ${
                 showThemePicker
@@ -431,52 +528,63 @@ export default function ViewerEditToolbar() {
           </div>
         )}
 
-        <button
-          onClick={handleSaveProject}
-          disabled={isSaving || previewOnly}
-          title={previewOnly ? t('unlockToDownload') : undefined}
-          className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all flex items-center gap-1 ${
-            previewOnly
-              ? 'border-gray-700 text-gray-600 cursor-not-allowed opacity-50'
-              : 'border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 disabled:opacity-50'
-          }`}
-        >
-          {isSaving ? (
-            <><LoadingSpinner size="xs" />{saveStage}</>
-          ) : (
-            <>
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-              </svg>
-              {t('save')}
-            </>
+        <div ref={saveMenuRef} className="relative">
+          <button
+            onClick={() => setShowSaveMenu(!showSaveMenu)}
+            disabled={(isSaving || isDownloading || isExportingVideo) || previewOnly}
+            title={previewOnly ? t('unlockToDownload') : undefined}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all flex items-center gap-1 ${
+              previewOnly
+                ? 'border-gray-700 text-gray-600 cursor-not-allowed opacity-50'
+                : 'border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 disabled:opacity-50'
+            }`}
+          >
+            {(isSaving || isExportingVideo) ? (
+              <><LoadingSpinner size="xs" />{saveStage || `${videoProgress}%`}</>
+            ) : (
+              <>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                </svg>
+                {t('save')}
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </>
+            )}
+          </button>
+          {showSaveMenu && (
+            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 bg-gray-900/95 backdrop-blur-md border border-gray-700 rounded-xl p-1.5 shadow-2xl shadow-black/50 min-w-[160px]">
+              <button
+                onClick={() => { setShowSaveMenu(false); handleSaveProject(); }}
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-gray-300 hover:bg-gray-800 hover:text-white transition-all"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                {t('exportJson') || 'Save as JSON'}
+              </button>
+              <button
+                onClick={() => { setShowSaveMenu(false); setShowVideoModal(true); }}
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-gray-300 hover:bg-gray-800 hover:text-white transition-all"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                {t('exportVideo') || 'Export Video'}
+              </button>
+              <button
+                onClick={() => { setShowSaveMenu(false); handleDownload(); }}
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-gray-300 hover:bg-gray-800 hover:text-white transition-all"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-rose-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+                {t('exportPdf') || 'Download PDF'}
+              </button>
+            </div>
           )}
-        </button>
-
-        <button
-          onClick={handleDownload}
-          disabled={isDownloading || previewOnly}
-          title={previewOnly ? t('unlockToDownload') : undefined}
-          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1 ${
-            previewOnly
-              ? 'bg-gray-700 text-gray-500 cursor-not-allowed opacity-50'
-              : 'bg-gradient-to-r from-rose-500 to-violet-600 text-white hover:from-rose-600 hover:to-violet-700 disabled:opacity-50'
-          }`}
-        >
-          {isDownloading ? (
-            <>
-              <LoadingSpinner size="xs" />
-              {downloadStage || (downloadElapsed > 3 ? `${Math.floor(downloadElapsed / 60)}:${String(downloadElapsed % 60).padStart(2, '0')}` : t('generating'))}
-            </>
-          ) : (
-            <>
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-              </svg>
-              {t('pdf')}
-            </>
-          )}
-        </button>
+        </div>
 
         {isDownloading && (
           <>
@@ -509,8 +617,53 @@ export default function ViewerEditToolbar() {
         )}
       </div>
 
-      {showSettings && (
-        <BaseModal title={t('bookSettings') || 'Book Settings'} onClose={() => setShowSettings(false)} size="lg" scrollable>
+      {showVideoModal && createPortal(
+        <VideoExportModal
+          onConfirm={handleExportVideo}
+          onClose={() => setShowVideoModal(false)}
+        />,
+        document.body
+      )}
+
+      {showPageFramePicker && (
+        <div ref={pageFramePickerRef} className="absolute top-full right-0 mt-2 z-50" data-popover>
+          <PageFramePickerPanel
+            currentFrameId={
+              selectedChapterIndex != null && selectedSpreadIndex != null
+                ? pageFrameOverrides?.[`${selectedChapterIndex}-${selectedSpreadIndex}`]?.id
+                : null
+            }
+            bookFrameId={bookPageFrame?.id || 'none'}
+            onSelectPage={(preset) => {
+              if (selectedChapterIndex != null && selectedSpreadIndex != null) {
+                setPageFrameOverride(`${selectedChapterIndex}-${selectedSpreadIndex}`, preset);
+              }
+            }}
+            onSelectBook={(preset) => {
+              setBookPageFrame(preset.id === 'none' ? null : preset);
+            }}
+            onClose={() => setShowPageFramePicker(false)}
+          />
+        </div>
+      )}
+
+      {showSettings && createPortal(
+        <BaseModal title={t('bookSettings') || 'Book Settings'} onClose={() => {
+          // Revert to snapshot if user closes without clicking Done
+          if (settingsSnapshot) {
+            setupActions.setPartnerNames(settingsSnapshot.partnerNames);
+            setupActions.setOccasion(settingsSnapshot.occasion);
+            setupActions.setVibe(settingsSnapshot.vibe);
+            setupActions.setDesignScale(settingsSnapshot.designScale);
+            setupActions.setCustomPageSize(settingsSnapshot.customPageSize);
+            setupActions.setImageDensity(settingsSnapshot.imageDensity);
+            setupActions.setCustomDensityCount(settingsSnapshot.customDensityCount);
+            Object.entries(settingsSnapshot.addOns).forEach(([k, v]) => setupActions.setAddOn(k, v));
+            setupActions.setIncludeQuotes(settingsSnapshot.includeQuotes);
+          }
+          setShowSettings(false);
+          setSettingsSnapshot(null);
+        }} size="lg" scrollable>
           <div className="space-y-6">
             <div>
               <h4 className="text-sm font-medium text-gray-300 mb-3">{t('aboutYou') || 'About You'}</h4>
@@ -529,8 +682,12 @@ export default function ViewerEditToolbar() {
               <BookFormatSection
                 designScale={designScale}
                 setDesignScale={setupActions.setDesignScale}
+                customPageSize={setupState.customPageSize}
+                setCustomPageSize={setupActions.setCustomPageSize}
                 imageDensity={setupState.imageDensity}
                 setImageDensity={setupActions.setImageDensity}
+                customDensityCount={setupState.customDensityCount}
+                setCustomDensityCount={setupActions.setCustomDensityCount}
                 compact
               />
             </div>
@@ -543,10 +700,33 @@ export default function ViewerEditToolbar() {
                 setIncludeQuotes={setupActions.setIncludeQuotes}
               />
             </div>
-            <div className="border-t border-gray-800 pt-4 flex justify-end">
+            <div className="border-t border-gray-800 pt-4 flex justify-end gap-2">
               <button
                 onClick={() => {
+                  // Revert to snapshot
+                  if (settingsSnapshot) {
+                    setupActions.setPartnerNames(settingsSnapshot.partnerNames);
+                    setupActions.setOccasion(settingsSnapshot.occasion);
+                    setupActions.setVibe(settingsSnapshot.vibe);
+                    setupActions.setDesignScale(settingsSnapshot.designScale);
+                    setupActions.setCustomPageSize(settingsSnapshot.customPageSize);
+                    setupActions.setImageDensity(settingsSnapshot.imageDensity);
+                    setupActions.setCustomDensityCount(settingsSnapshot.customDensityCount);
+                    Object.entries(settingsSnapshot.addOns).forEach(([k, v]) => setupActions.setAddOn(k, v));
+                    setupActions.setIncludeQuotes(settingsSnapshot.includeQuotes);
+                  }
                   setShowSettings(false);
+                  setSettingsSnapshot(null);
+                }}
+                className="px-4 py-2 rounded-lg text-sm font-medium border border-gray-700 text-gray-400 hover:border-gray-600 transition-all"
+              >
+                {t('cancel') || 'Cancel'}
+              </button>
+              <button
+                onClick={() => {
+                  // Keep changes — clear snapshot so they persist
+                  setShowSettings(false);
+                  setSettingsSnapshot(null);
                   toast.success(t('settingsUpdated') || 'Settings updated');
                 }}
                 className="px-4 py-2 rounded-lg text-sm font-medium bg-violet-600 text-white hover:bg-violet-500 transition-all"
@@ -555,7 +735,8 @@ export default function ViewerEditToolbar() {
               </button>
             </div>
           </div>
-        </BaseModal>
+        </BaseModal>,
+        document.body
       )}
     </div>
   );

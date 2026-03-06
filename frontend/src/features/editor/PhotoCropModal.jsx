@@ -114,6 +114,22 @@ export default function PhotoCropModal({ src, initialCrop, onApply, onClose }) {
     });
   }, [clampPan]);
 
+  // Register wheel/touch listeners imperatively with { passive: false } to allow preventDefault
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    el.addEventListener('touchstart', handleTouchStart, { passive: false });
+    el.addEventListener('touchmove', handleTouchMove, { passive: false });
+    el.addEventListener('touchend', handleTouchEnd);
+    return () => {
+      el.removeEventListener('wheel', handleWheel);
+      el.removeEventListener('touchstart', handleTouchStart);
+      el.removeEventListener('touchmove', handleTouchMove);
+      el.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [handleWheel, handleTouchStart, handleTouchMove, handleTouchEnd]);
+
   function handleReset() {
     setZoom(1);
     setPan({ x: 0, y: 0 });
@@ -175,10 +191,6 @@ export default function PhotoCropModal({ src, initialCrop, onApply, onClose }) {
             ref={containerRef}
             className="relative aspect-[4/3] w-full overflow-hidden rounded-xl border border-gray-700 bg-black"
             onMouseDown={handleMouseDown}
-            onWheel={handleWheel}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
           >
             <img
               ref={imgRef}

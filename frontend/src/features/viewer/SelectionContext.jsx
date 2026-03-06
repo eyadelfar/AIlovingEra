@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 
 const SelectionContext = createContext(null);
@@ -36,12 +37,14 @@ export function SelectionProvider({ children, enabled }) {
     if (!enabled || !selected) return;
     function handleClick(e) {
       // Ignore clicks inside floating toolbars / popovers
-      if (e.target.closest('[data-toolbar]') || e.target.closest('[data-popover]') || e.target.closest('[data-modal]')) return;
-      // Ignore clicks on interactive elements (other photos/text will handle their own selection)
+      if (e.target.closest('[data-toolbar]') || e.target.closest('[data-popover]') || e.target.closest('[data-modal]') || e.target.closest('[data-context-menu]')) return;
+      // Ignore clicks on interactive elements (photos/text)
       if (e.target.closest('[data-selectable]')) return;
+      // Ignore clicks on active contentEditable regions (user is typing)
+      if (e.target.closest('[contenteditable="true"]')) return;
       clearSelection();
     }
-    // Use capture phase with a small delay so element click handlers fire first
+    // Small delay so element click handlers fire first in the same event
     const timer = setTimeout(() => {
       document.addEventListener('pointerdown', handleClick);
     }, 0);

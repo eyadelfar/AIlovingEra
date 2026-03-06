@@ -36,7 +36,8 @@ def parse_spreads(raw_spreads: list[dict]) -> list[SpreadDraft]:
     spreads: list[SpreadDraft] = []
     for idx, s in enumerate(raw_spreads):
         # Extract photo indices from either flat field or nested elements
-        photo_indices = s.get("photo_indices", [])
+        # Filter out None values – AI sometimes produces [5, 13, None]
+        photo_indices = [i for i in s.get("photo_indices", []) if i is not None]
         elements: list[PageElement] = []
 
         # Parse nested pages > elements structure (v2 format)

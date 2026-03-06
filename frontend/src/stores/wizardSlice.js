@@ -1,4 +1,4 @@
-import { MAX_IMAGES } from '../lib/constants';
+import { MAX_IMAGES, VIBE_IMAGE_LOOK_DEFAULTS } from '../lib/constants';
 import { trackEvent } from '../lib/eventTracker';
 
 export const createWizardSlice = (set, get) => ({
@@ -21,8 +21,6 @@ export const createWizardSlice = (set, get) => ({
     const s = get();
     if (s.currentStep === 1 && s.images.length >= 2) {
       s.triggerCartoonGeneration();
-      // Pre-fetch questions so they're ready by the time user reaches StepYourStory
-      s.fetchQuestions();
     }
     set({ currentStep: Math.min(s.currentStep + 1, 3) });
   },
@@ -89,7 +87,8 @@ export const createWizardSlice = (set, get) => ({
   setPartnerNames: (names) => set({ partnerNames: names }),
   setOccasion: (occ) => set({ occasion: occ }),
   setVibe: (vibe) => {
-    set({ vibe });
+    const defaultLook = VIBE_IMAGE_LOOK_DEFAULTS[vibe];
+    set(defaultLook ? { vibe, imageLook: defaultLook } : { vibe });
     trackEvent('vibe_selected', 'wizard', { vibe });
   },
   setIncludeQuotes: (val) => set({ includeQuotes: val }),

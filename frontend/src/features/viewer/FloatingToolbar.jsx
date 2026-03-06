@@ -21,25 +21,40 @@ export default function FloatingToolbar({ onAction }) {
   // Position toolbar above the selected element with edge clamping
   useEffect(() => {
     if (!selected) return;
-    const key = selected.type === 'photo' ? `photo-${selected.slotKey}` : `text-${selected.field}`;
-    const rect = selection.getElementRect?.(key);
-    const containerRect = selection.containerRef?.current?.getBoundingClientRect();
-    if (!rect || !containerRect) return;
 
-    const toolbarW = toolbarRef.current?.offsetWidth || 200;
-    const halfToolbar = toolbarW / 2;
+    function recalculate() {
+      const key = selected.type === 'photo' ? `photo-${selected.slotKey}` : `text-${selected.field}`;
+      const rect = selection.getElementRect?.(key);
+      const containerRect = selection.containerRef?.current?.getBoundingClientRect();
+      if (!rect || !containerRect) return;
 
-    let top = rect.top - containerRect.top - 44;
-    let left = rect.left - containerRect.left + rect.width / 2;
+      const toolbarW = toolbarRef.current?.offsetWidth || 200;
+      const halfToolbar = toolbarW / 2;
 
-    // Clamp horizontal so toolbar stays within container
-    left = Math.max(halfToolbar + 4, Math.min(left, containerRect.width - halfToolbar - 4));
-    // If no room above, position below the element instead
-    if (top < 0) {
-      top = rect.bottom - containerRect.top + 8;
+      let top = rect.top - containerRect.top - 44;
+      let left = rect.left - containerRect.left + rect.width / 2;
+
+      // Clamp horizontal so toolbar stays within container
+      left = Math.max(halfToolbar + 4, Math.min(left, containerRect.width - halfToolbar - 4));
+      // If no room above, position below the element instead
+      if (top < 0) {
+        top = rect.bottom - containerRect.top + 8;
+      }
+      setPos({ top, left });
     }
-    setPos({ top, left });
-  }, [selected]);
+
+    recalculate();
+
+    window.addEventListener('resize', recalculate);
+    const container = selection.containerRef?.current;
+    const scrollParent = container?.closest('.overflow-auto, .overflow-y-auto, .overflow-scroll') || window;
+    scrollParent.addEventListener('scroll', recalculate, true);
+
+    return () => {
+      window.removeEventListener('resize', recalculate);
+      scrollParent.removeEventListener('scroll', recalculate, true);
+    };
+  }, [selected, selection]);
 
   const blendOverrides = useBookStore(s => s.blendOverrides);
   const globalBlend = useBookStore(s => s.blendPhotos);
@@ -73,8 +88,10 @@ export default function FloatingToolbar({ onAction }) {
                 onClick={() => setBlendOverride(selected.slotKey, !isBlended)}
               />
               <ToolbarSep />
+              <ToolbarBtn icon={<RemoveBgIcon />} label={t('toolbarRemoveBg')} onClick={() => onAction('removeBg', selected)} />
+              <ToolbarBtn icon={<FrameIcon />} label={t('toolbarFrame')} onClick={() => onAction('imageFrame', selected)} />
+              <ToolbarSep />
               <ToolbarBtn icon={<SwapIcon />} label={t('toolbarSwap')} onClick={() => onAction('swap', selected)} />
-              <ToolbarBtn icon={<MoveIcon />} label={t('toolbarMove')} onClick={() => onAction('moveTo', selected)} />
               <ToolbarBtn icon={<RemoveIcon />} label={t('toolbarRemove')} onClick={() => onAction('removePhoto', selected)} />
               <ToolbarSep />
               <ToolbarBtn icon={<SparkleIcon />} label={t('toolbarAI')} accent onClick={() => onAction('ai', selected)} />
@@ -175,14 +192,6 @@ function AlignIcon() {
   );
 }
 
-function MoveIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-    </svg>
-  );
-}
-
 function RemoveIcon() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -191,10 +200,19 @@ function RemoveIcon() {
   );
 }
 
-function AddPhotoIcon() {
+function RemoveBgIcon() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 10-4.243 0 3 3 0 004.243 0zm0 0L12 12" />
     </svg>
   );
 }
+
+function FrameIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 4h16v16H4V4zm2 2v12h12V6H6z" />
+    </svg>
+  );
+}
+

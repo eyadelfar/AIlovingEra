@@ -9,7 +9,7 @@ import {
 } from '../../lib/filterUtils';
 
 const MIN_ZOOM = 1;
-const DEFAULT_ZOOM = 1.15;
+const DEFAULT_ZOOM = 1;
 const MAX_ZOOM = 3;
 const ZOOM_STEP = 0.1;
 
@@ -21,7 +21,7 @@ const SLIDER_META = {
   warmth:     { min: -40, max: 40, label: 'Warmth' },
 };
 
-export default function PhotoEditModal({ src, slotKey, initialCrop, initialFilter, onApply, onClose }) {
+export default function PhotoEditModal({ src, initialCrop, initialFilter, onApply, onClose }) {
   const [tab, setTab] = useState('crop');
 
   // --- Crop state ---
@@ -88,7 +88,7 @@ export default function PhotoEditModal({ src, slotKey, initialCrop, initialFilte
   // Touch handlers
   const lastTouchDist = useRef(null);
   const handleTouchStart = useCallback((e) => {
-    if (e.touches.length === 1 && zoom >= 1) {
+    if (e.touches.length === 1 && zoom > 1) {
       const t = e.touches[0];
       setIsDragging(true);
       dragStart.current = { x: t.clientX, y: t.clientY, panX: pan.x, panY: pan.y };
@@ -130,6 +130,22 @@ export default function PhotoEditModal({ src, slotKey, initialCrop, initialFilte
     lastTouchDist.current = null;
   }, []);
 
+  // Register wheel/touch listeners imperatively with { passive: false } to allow preventDefault
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || tab !== 'crop') return;
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    el.addEventListener('touchstart', handleTouchStart, { passive: false });
+    el.addEventListener('touchmove', handleTouchMove, { passive: false });
+    el.addEventListener('touchend', handleTouchEnd);
+    return () => {
+      el.removeEventListener('wheel', handleWheel);
+      el.removeEventListener('touchstart', handleTouchStart);
+      el.removeEventListener('touchmove', handleTouchMove);
+      el.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [tab, handleWheel, handleTouchStart, handleTouchMove, handleTouchEnd]);
+
   // Filter handlers
   const updateFilter = useCallback((key, value) => {
     setFilters(prev => ({ ...prev, [key]: Number(value) }));
@@ -167,7 +183,7 @@ export default function PhotoEditModal({ src, slotKey, initialCrop, initialFilte
 
   const imageStyle = {
     filter: tab === 'filters' ? previewFilter : undefined,
-    transform: zoom > 1 ? `scale(${zoom}) translate(${pan.x}%, ${pan.y}%)` : undefined,
+    transform: zoom > 1 ? `scale(${zoom}) translate(${pan.x}%, ${pan.y}%)` : 'none',
     transformOrigin: 'center',
     cursor: tab === 'crop' && zoom >= 1 ? (isDragging ? 'grabbing' : 'grab') : 'default',
     userSelect: 'none',
@@ -224,15 +240,11 @@ export default function PhotoEditModal({ src, slotKey, initialCrop, initialFilte
             ref={containerRef}
             className="relative aspect-[4/3] w-full overflow-hidden rounded-xl border border-gray-700 bg-black"
             onMouseDown={tab === 'crop' ? handleMouseDown : undefined}
-            onWheel={tab === 'crop' ? handleWheel : undefined}
-            onTouchStart={tab === 'crop' ? handleTouchStart : undefined}
-            onTouchMove={tab === 'crop' ? handleTouchMove : undefined}
-            onTouchEnd={tab === 'crop' ? handleTouchEnd : undefined}
           >
             <img
               src={src}
               alt=""
-              className="absolute inset-0 w-full h-full object-cover"
+              className={`absolute inset-0 w-full h-full ${zoom > 1 ? 'object-cover' : 'object-contain'}`}
               style={imageStyle}
               draggable={false}
             />

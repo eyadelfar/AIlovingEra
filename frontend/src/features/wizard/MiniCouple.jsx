@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 
@@ -157,7 +157,7 @@ function getSceneKey(stageIndex) {
   return 'walk';
 }
 
-export default function MiniCouple({ progress, stageIndex, cartoonImages }) {
+export default function MiniCouple({ stageIndex, cartoonImages }) {
   const { t } = useTranslation('wizard');
   const sceneKey = getSceneKey(stageIndex);
   const anim = sceneAnimations[sceneKey] || sceneAnimations.analyze;

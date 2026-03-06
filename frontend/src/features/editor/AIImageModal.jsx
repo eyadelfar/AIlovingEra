@@ -9,6 +9,7 @@ export default function AIImageModal({ chapterIdx, spreadIdx, slotIdx, photoInde
   const enhanceImageAction = useBookStore(s => s.enhanceImageAction);
   const swapPhoto = useBookStore(s => s.swapPhoto);
   const addImages = useBookStore(s => s.addImages);
+  const addPhotoToSpread = useBookStore(s => s.addPhotoToSpread);
   const images = useBookStore(s => s.images);
 
   const hasPhoto = photoIndex != null && images[photoIndex];
@@ -28,6 +29,7 @@ export default function AIImageModal({ chapterIdx, spreadIdx, slotIdx, photoInde
 
     try {
       const result = await generateAIImageAction(prompt, selectedLook);
+      if (!result) throw new Error('Generation returned no result');
       setResultImage(result);
     } catch (err) {
       setError(err.message || 'Generation failed');
@@ -43,6 +45,7 @@ export default function AIImageModal({ chapterIdx, spreadIdx, slotIdx, photoInde
 
     try {
       const result = await enhanceImageAction(photoIndex, selectedLook, enhanceInstruction);
+      if (!result) throw new Error('Could not enhance image — photo data unavailable');
       setResultImage(result);
     } catch (err) {
       setError(err.message || 'Enhancement failed');
@@ -63,8 +66,14 @@ export default function AIImageModal({ chapterIdx, spreadIdx, slotIdx, photoInde
     const file = new File([blob], `ai-${tab}-${Date.now()}.png`, { type: 'image/png' });
 
     addImages([file]);
-    const newIdx = images.length;
-    swapPhoto(chapterIdx, spreadIdx, slotIdx, newIdx);
+    const newIdx = useBookStore.getState().images.length - 1;
+    if (slotIdx != null) {
+      // Replace existing photo slot
+      swapPhoto(chapterIdx, spreadIdx, slotIdx, newIdx);
+    } else if (chapterIdx != null && spreadIdx != null) {
+      // Add as new photo to the spread (from empty area generate)
+      addPhotoToSpread(chapterIdx, spreadIdx, newIdx);
+    }
     onClose();
   }
 

@@ -149,7 +149,7 @@ function SortablePhoto({ image, index, onRemove, onView }) {
         <img
           src={image.previewUrl}
           alt={image.name}
-          className={`w-full h-full object-cover rounded-lg border-2 transition-all ${
+          className={`w-full h-full object-contain rounded-lg border-2 transition-all ${
             isDragging ? 'border-violet-500 shadow-lg shadow-violet-500/30 scale-105' : 'border-gray-700'
           }`}
           draggable={false}

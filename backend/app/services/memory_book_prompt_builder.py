@@ -106,7 +106,7 @@ class MemoryBookPromptBuilder(AbstractPromptBuilder):
     def _build_addons_hint(request: BookGenerationRequest) -> str:
         parts: list[str] = []
         if request.add_ons.love_letter_insert:
-            parts.append('Generate a "love_letter_text" field: a 150-250 word heartfelt love letter.')
+            parts.append('Generate a "love_letter_text" field: a 40-80 word intimate love note — short, sweet, and personal like a handwritten note tucked inside a memory book. Focus on one specific memory or feeling, not grand declarations.')
         if request.add_ons.audio_qr_codes:
             parts.append('Generate "audio_qr_chapter_labels": short spoken-word labels for each chapter.')
         if request.add_ons.anniversary_edition_cover:
@@ -732,6 +732,7 @@ IMPORTANT REMINDERS:
         partner_names: list[str],
         relationship_type: str,
         locale: str = "en",
+        question_count: int = 6,
     ) -> str:
         names, _ = self._format_names(partner_names)
         if not names:
@@ -751,7 +752,7 @@ Do NOT translate proper nouns or names.
 
         return f"""You are a storyteller helping create a deeply personal memory book for {names} ({relationship_type}).
 
-You have {len(photo_analyses)} analyzed photos. Your job: ask exactly 5-7 questions whose answers will unlock the REAL story behind these photos — the kind of details that turn a generic photo book into something that makes the reader cry happy tears.
+You have {len(photo_analyses)} analyzed photos. Your job: ask exactly {question_count} questions whose answers will unlock the REAL story behind these photos — the kind of details that turn a generic photo book into something that makes the reader cry happy tears.
 
 Analyzed photos:
 {analyses_text}
@@ -780,7 +781,7 @@ QUESTION STRATEGY (pick 5-7 total, one from each category that applies):
    Example: "Is there an important moment that isn't captured in any of these photos?"
 
 RULES:
-- Generate EXACTLY 5 to 7 questions, no more
+- Generate EXACTLY {question_count} questions, no more, no less
 - Reference specific photos by number when relevant
 - Questions must feel like a warm conversation, not an interview
 - Each question needs a context_hint

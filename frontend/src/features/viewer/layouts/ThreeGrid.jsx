@@ -16,13 +16,13 @@ import { PhotoImg, Divider } from '../PageShell';
 //   |  body text           |
 //   +----------------------+
 //
-export default function ThreeGrid({ page, photos, photoIndices, style, photoFilter, photoAnalyses, cropOverrides, filterOverrides, P }) {
+export default function ThreeGrid({ page, photos, style, P }) {
   const p = photos.slice(0, 3);
   return (
     <PageShell style={style} className={`${style.innerPadding} flex flex-col`}>
       <div className="relative z-20 flex flex-col h-full">
         {/* Photo grid: hero left + 2 stacked right */}
-        <div className="flex gap-2.5 overflow-hidden flex-[6.5] min-h-0">
+        <div className="flex gap-2.5 overflow-hidden flex-[5] min-h-0">
           {/* Hero photo — 60% width */}
           <div className="w-[60%] h-full overflow-hidden rounded-lg">
             <PhotoImg {...P(0)} heroFrame />
@@ -36,11 +36,14 @@ export default function ThreeGrid({ page, photos, photoIndices, style, photoFilt
         </div>
 
         {/* Text strip */}
-        <div className="flex-1 flex flex-col justify-center min-h-0 pt-3">
-          {page.heading_text && <h3 data-ts="heading" className={`font-semibold ${style.heading} mb-1`}>{page.heading_text}</h3>}
-          <Divider className={`${style.dividerWide} my-2`} />
-          {page.body_text && <p data-ts="body" className={`${style.body} text-xs leading-relaxed line-clamp-3`}>{page.body_text}</p>}
-          {page.caption_text && <p data-ts="caption" className={`text-xs ${style.caption} mt-1 line-clamp-1`}>{page.caption_text}</p>}
+        <div className="flex-[2] flex flex-col justify-center min-h-0 pt-3 relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/15 to-transparent rounded-b-xl pointer-events-none" />
+          <div className="relative z-10">
+            {page.heading_text && <h3 data-ts="heading" className={`font-semibold ${style.heading} mb-1`}>{page.heading_text}</h3>}
+            <Divider className={`${style.dividerWide} my-2`} />
+            {page.body_text && <p data-ts="body" className={`${style.body} text-xs leading-relaxed line-clamp-4`}>{page.body_text}</p>}
+            {page.caption_text && <p data-ts="caption" className={`text-xs ${style.caption} mt-1`}>{page.caption_text}</p>}
+          </div>
         </div>
       </div>
     </PageShell>

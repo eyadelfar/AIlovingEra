@@ -8,15 +8,56 @@ const MAX_RETRIES = 2;
 const RETRY_DELAYS = [2000, 4000]; // exponential backoff
 
 /**
+ * Check if a JWT is expired or will expire within `bufferSec` seconds.
+ * Reads the `exp` claim from the token payload without verifying the signature.
+ */
+function isTokenExpiringSoon(token, bufferSec = 120) {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.exp && (payload.exp - bufferSec) < Date.now() / 1000;
+  } catch {
+    return true; // If we can't decode, treat as expired
+  }
+}
+
+/**
+ * Force-refresh the Supabase session and update the auth store.
+ * Returns the new access token or null.
+ */
+async function refreshSession() {
+  if (!supabase) return null;
+  try {
+    const { data, error } = await Promise.race([
+      supabase.auth.refreshSession(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('refresh_timeout')), 5000)),
+    ]);
+    if (error || !data?.session) return null;
+    // Update Zustand store so subsequent calls get the fresh token instantly
+    useAuthStore.setState({ session: data.session, user: data.session.user });
+    return data.session.access_token;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Get the current access token without blocking on supabase.auth.getSession().
  * Primary source: the zustand-persisted authStore (instant, synchronous read).
  * Fallback: supabase.auth.getSession() with a short timeout.
  * This avoids the navigator.locks contention that causes getSession() to hang.
+ *
+ * Proactively refreshes tokens that expire within 2 minutes.
  */
 export async function getAccessToken() {
   // 1. Try the zustand store first — instant, no lock contention
   const storeSession = useAuthStore.getState().session;
   if (storeSession?.access_token) {
+    // Check if token is expired or about to expire (within 2 min)
+    if (isTokenExpiringSoon(storeSession.access_token, 120)) {
+      const fresh = await refreshSession();
+      if (fresh) return fresh;
+      // Refresh failed — try the stale token anyway, backend will 401 and we retry
+    }
     return storeSession.access_token;
   }
 
@@ -27,13 +68,26 @@ export async function getAccessToken() {
         supabase.auth.getSession(),
         new Promise((_, reject) => setTimeout(() => reject(new Error('session_timeout')), 3000)),
       ]);
-      return result?.data?.session?.access_token ?? null;
+      const token = result?.data?.session?.access_token ?? null;
+      if (token && isTokenExpiringSoon(token, 120)) {
+        const fresh = await refreshSession();
+        if (fresh) return fresh;
+      }
+      return token;
     } catch {
       return null;
     }
   }
 
   return null;
+}
+
+/**
+ * Force-get a fresh token (used for 401 retry logic).
+ * Always calls Supabase refresh regardless of current token state.
+ */
+export async function forceRefreshToken() {
+  return refreshSession();
 }
 
 function isRetryable(status) {
@@ -43,9 +97,14 @@ function isRetryable(status) {
 export async function apiFetch(path, options = {}) {
   const { timeout = DEFAULT_TIMEOUT, retries = MAX_RETRIES, ...fetchOpts } = options;
 
+  // Only retry safe (idempotent) methods — POST/PATCH/DELETE could cause duplicates
+  const method = (fetchOpts.method || 'GET').toUpperCase();
+  const isSafeMethod = method === 'GET' || method === 'HEAD';
+  const effectiveRetries = isSafeMethod ? retries : 0;
+
   let lastError;
 
-  for (let attempt = 0; attempt <= retries; attempt++) {
+  for (let attempt = 0; attempt <= effectiveRetries; attempt++) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
 
@@ -72,12 +131,21 @@ export async function apiFetch(path, options = {}) {
       clearTimeout(timeoutId);
 
       if (!res.ok) {
-        // Don't retry client errors (4xx)
+        // 401 Unauthorized — try refreshing token and retry ONCE
+        if (res.status === 401 && attempt === 0) {
+          const freshToken = await forceRefreshToken();
+          if (freshToken) {
+            fetchOpts.headers = { ...(fetchOpts.headers || {}), Authorization: `Bearer ${freshToken}` };
+            lastError = await buildError(res);
+            continue; // retry with fresh token
+          }
+        }
+        // Don't retry other client errors (4xx)
         if (res.status >= 400 && res.status < 500) {
           throw await buildError(res);
         }
         // Retry 5xx errors
-        if (isRetryable(res.status) && attempt < retries) {
+        if (isRetryable(res.status) && attempt < effectiveRetries) {
           lastError = await buildError(res);
           await delay(RETRY_DELAYS[attempt] || 4000);
           continue;
@@ -95,7 +163,7 @@ export async function apiFetch(path, options = {}) {
         }
         // Timeout — retry if we have attempts left
         lastError = new Error('Request timed out');
-        if (attempt < retries) {
+        if (attempt < effectiveRetries) {
           await delay(RETRY_DELAYS[attempt] || 4000);
           continue;
         }
@@ -103,7 +171,7 @@ export async function apiFetch(path, options = {}) {
       }
 
       // Network error — retry
-      if (attempt < retries) {
+      if (attempt < effectiveRetries) {
         lastError = err;
         await delay(RETRY_DELAYS[attempt] || 4000);
         continue;

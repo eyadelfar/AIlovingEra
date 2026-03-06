@@ -20,7 +20,7 @@ import { PhotoImg, Divider, QuoteBlock } from '../PageShell';
 //   |         caption      |
 //   +----------------------+
 //
-export default function TwoBalanced({ page, photos, photoIndices, style, photoFilter, photoAnalyses, cropOverrides, filterOverrides, P }) {
+export default function TwoBalanced({ page, style, P }) {
   return (
     <PageShell style={style} className={`${style.innerPadding} flex flex-col`}>
       <div className="relative z-20 flex flex-col h-full">
@@ -32,10 +32,10 @@ export default function TwoBalanced({ page, photos, photoIndices, style, photoFi
         </div>
 
         {/* Breathing space — text */}
-        <div className="flex-1 flex flex-col items-center justify-center px-4 py-2 min-h-0">
+        <div className="flex-1 flex flex-col items-center justify-center px-4 py-2 min-h-0 overflow-hidden">
           {page.heading_text && <h3 data-ts="heading" className={`font-semibold ${style.headingLg} mb-2 text-center`}>{page.heading_text}</h3>}
           <Divider className={style.divider} />
-          {page.body_text && <p data-ts="body" className={`${style.body} text-sm leading-relaxed text-center mt-2 line-clamp-3 max-w-sm`}>{page.body_text}</p>}
+          {page.body_text && <p data-ts="body" className={`${style.body} text-sm leading-relaxed text-center mt-2 max-w-sm`}>{page.body_text}</p>}
           {page.quote_text && <div className="mt-3"><QuoteBlock text={page.quote_text} style={style} compact /></div>}
         </div>
 

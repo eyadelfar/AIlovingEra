@@ -82,7 +82,16 @@
       "Bash(node:*)",
       "Bash(where psql:*)",
       "Bash(where supabase:*)",
-      "Bash(npx supabase:*)"
+      "Bash(npx supabase:*)",
+      "Bash(npx tsc:*)",
+      "WebFetch(domain:motion.dev)",
+      "Bash(xargs cat:*)",
+      "Bash(npm install:*)",
+      "Bash(xargs wc:*)",
+      "Bash(npm run:*)",
+      "Bash(npm ls:*)",
+      "Bash(npx eslint:*)",
+      "Bash(sort:*)"
     ]
   }
 }

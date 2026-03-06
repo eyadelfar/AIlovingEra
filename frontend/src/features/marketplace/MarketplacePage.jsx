@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Store } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import toast from 'react-hot-toast';
 import { apiJson } from '../../lib/api';
 import DesignFilters from './DesignFilters';
 import DesignCard from './DesignCard';
@@ -29,7 +30,7 @@ export default function MarketplacePage() {
       setDesigns(data.designs || []);
       setTotal(data.total || 0);
     } catch (err) {
-      console.error('Failed to load designs:', err);
+      toast.error(err?.message || t('loadError', { defaultValue: 'Failed to load designs.' }));
     } finally {
       setLoading(false);
     }

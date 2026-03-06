@@ -1,9 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useShallow } from 'zustand/shallow';
 import useBookStore from '../../stores/bookStore';
-import LoadingSpinner from '../shared/LoadingSpinner';
 import VoiceRecorder from '../shared/VoiceRecorder';
 
 function autoResize(el) {
@@ -19,6 +18,142 @@ const PROMPT_KEYS = [
   'promptInsideJokes',
 ];
 
+// Stage definitions with icons and order for the progress stepper
+const QUESTION_STAGES = [
+  { key: 'metadata',   icon: 'camera' },
+  { key: 'analyzing',  icon: 'eye' },
+  { key: 'generating', icon: 'sparkle' },
+];
+
+function StageIcon({ type, active, done }) {
+  const base = 'w-5 h-5 transition-colors duration-300';
+  const color = done ? 'text-emerald-400' : active ? 'text-rose-400' : 'text-gray-600';
+  const cls = `${base} ${color}`;
+
+  if (done) return (
+    <svg className={cls} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+    </svg>
+  );
+  if (type === 'camera') return (
+    <svg className={cls} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z" />
+    </svg>
+  );
+  if (type === 'eye') return (
+    <svg className={cls} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+    </svg>
+  );
+  // sparkle
+  return (
+    <svg className={cls} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456z" />
+    </svg>
+  );
+}
+
+function QuestionsLoadingAnimation({ t, stage }) {
+  const currentStageKey = stage?.stage || 'metadata';
+  const progress = stage?.progress || 0;
+  const message = stage?.message || t('analyzingPhotos');
+
+  const activeIdx = QUESTION_STAGES.findIndex(s => s.key === currentStageKey);
+
+  return (
+    <div className="py-8 flex flex-col items-center gap-6">
+      {/* Stage stepper */}
+      <div className="flex items-center gap-0 w-full max-w-xs">
+        {QUESTION_STAGES.map((s, i) => {
+          const isDone = i < activeIdx;
+          const isActive = i === activeIdx;
+          return (
+            <div key={s.key} className="flex items-center flex-1">
+              {/* Step circle */}
+              <motion.div
+                animate={isActive ? { scale: [1, 1.15, 1] } : {}}
+                transition={isActive ? { duration: 1.5, repeat: Infinity, ease: 'easeInOut' } : {}}
+                className={`relative w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-500 ${
+                  isDone
+                    ? 'bg-emerald-500/15 border-emerald-500/50'
+                    : isActive
+                      ? 'bg-rose-500/15 border-rose-500/50 shadow-[0_0_16px_rgba(244,63,94,0.25)]'
+                      : 'bg-gray-800/50 border-gray-700'
+                }`}
+              >
+                <StageIcon type={s.icon} active={isActive} done={isDone} />
+                {isActive && (
+                  <motion.span
+                    className="absolute inset-0 rounded-full border-2 border-rose-400/30"
+                    animate={{ scale: [1, 1.5], opacity: [0.5, 0] }}
+                    transition={{ duration: 1.5, repeat: Infinity, ease: 'easeOut' }}
+                  />
+                )}
+              </motion.div>
+              {/* Connector line */}
+              {i < QUESTION_STAGES.length - 1 && (
+                <div className="flex-1 h-0.5 mx-1.5 rounded-full bg-gray-700 overflow-hidden">
+                  <motion.div
+                    className="h-full bg-gradient-to-r from-emerald-500 to-rose-500 rounded-full"
+                    initial={{ width: '0%' }}
+                    animate={{ width: isDone ? '100%' : isActive ? '50%' : '0%' }}
+                    transition={{ duration: 0.6, ease: 'easeOut' }}
+                  />
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Stage labels */}
+      <div className="flex w-full max-w-xs">
+        {QUESTION_STAGES.map((s, i) => {
+          const isDone = i < activeIdx;
+          const isActive = i === activeIdx;
+          return (
+            <p
+              key={s.key}
+              className={`flex-1 text-center text-[10px] font-medium transition-colors duration-300 ${
+                isDone ? 'text-emerald-400/70' : isActive ? 'text-gray-300' : 'text-gray-600'
+              }`}
+            >
+              {t(`qStage_${s.key}`)}
+            </p>
+          );
+        })}
+      </div>
+
+      {/* Live message from backend */}
+      <div className="h-10 flex flex-col items-center justify-center">
+        <AnimatePresence mode="wait">
+          <motion.p
+            key={message}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.25 }}
+            className="text-gray-400 text-sm text-center"
+          >
+            {message}
+          </motion.p>
+        </AnimatePresence>
+      </div>
+
+      {/* Real progress bar */}
+      <div className="w-56 h-1.5 bg-gray-800 rounded-full overflow-hidden">
+        <motion.div
+          className="h-full bg-gradient-to-r from-rose-500 via-pink-500 to-violet-500 rounded-full"
+          animate={{ width: `${Math.max(progress, 3)}%` }}
+          transition={{ duration: 0.6, ease: 'easeOut' }}
+        />
+      </div>
+    </div>
+  );
+}
+
 export default function StepYourStory() {
   const { t } = useTranslation('wizard');
   // Actions (stable refs, won't cause re-renders)
@@ -30,7 +165,6 @@ export default function StepYourStory() {
       skipAllQuestions: s.skipAllQuestions,
       rephraseAnswer: s.rephraseAnswer,
       rephraseStory: s.rephraseStory,
-      fetchMoreQuestions: s.fetchMoreQuestions,
     })),
   );
   // State values (batched selector — only re-renders when any of these actually change)
@@ -43,20 +177,20 @@ export default function StepYourStory() {
       visibleQuestionCount: s.visibleQuestionCount,
       rephrasingQuestionId: s.rephrasingQuestionId,
       isRephrasingStory: s.isRephrasingStory,
-      isLoadingMoreQuestions: s.isLoadingMoreQuestions,
       images: s.images,
+      questionLoadingStage: s.questionLoadingStage,
     })),
   );
 
   const cleanupQuestionTimers = useBookStore(s => s.cleanupQuestionTimers);
   const {
     setTextInput, fetchQuestions, setQuestionAnswer, skipAllQuestions,
-    rephraseAnswer, rephraseStory, fetchMoreQuestions,
+    rephraseAnswer, rephraseStory,
   } = actions;
   const {
     textInput, aiQuestions, questionAnswers, isLoadingQuestions,
     visibleQuestionCount, rephrasingQuestionId, isRephrasingStory,
-    isLoadingMoreQuestions, images,
+    images, questionLoadingStage,
   } = state;
 
   // Cleanup question reveal timers on unmount to prevent leaks
@@ -102,13 +236,7 @@ export default function StepYourStory() {
     });
   }, [questionAnswers]);
 
-  const [moreCount, setMoreCount] = useState(3);
-
-  useEffect(() => {
-    if (images.length > 0 && aiQuestions.length === 0 && !isLoadingQuestions) {
-      fetchQuestions();
-    }
-  }, [images.length, aiQuestions.length, isLoadingQuestions, fetchQuestions]);
+  const [questionCount, setQuestionCount] = useState(6);
 
   function handleStoryTranscribed(text) {
     const current = useBookStore.getState().textInput;
@@ -187,48 +315,60 @@ export default function StepYourStory() {
         </div>
       </div>
 
-      {/* ── AI Questions ── */}
+      {/* ── AI Questions (opt-in) ── */}
       <div>
-        <div className="flex items-center justify-between mb-2">
-          <label className="text-sm font-medium text-gray-300">
-            {t('answerQuestionsLabel')}
-          </label>
-          {aiQuestions.length > 0 && (
-            <button
-              onClick={skipAllQuestions}
-              className="text-sm text-gray-500 hover:text-gray-300 transition-colors"
-            >
-              {t('skipAll')}
-            </button>
-          )}
-        </div>
+        {aiQuestions.length === 0 && !isLoadingQuestions ? (
+          <div className="text-center py-8 border border-dashed border-gray-700 rounded-xl">
+            <p className="text-gray-400 text-sm mb-5">{t('answerQuestionsLabel')}</p>
 
-        {isLoadingQuestions ? (
-          <div className="py-6 space-y-4">
-            <p className="text-gray-400 text-sm text-center mb-4">{t('analyzingPhotos')}</p>
-            <p className="text-gray-600 text-xs text-center">{t('usuallyTakes')}</p>
-            {[1, 2, 3].map(i => (
-              <div key={i} className="bg-gray-900/40 border border-gray-800 rounded-xl p-4 animate-pulse">
-                <div className="flex items-start gap-3 mb-3">
-                  <div className="w-7 h-7 rounded-full bg-gray-700/50" />
-                  <div className="flex-1 space-y-2">
-                    <div className="h-4 bg-gray-700/40 rounded w-3/4" />
-                    <div className="h-3 bg-gray-700/20 rounded w-1/2" />
-                  </div>
-                </div>
-                <div className="ms-10 h-10 bg-gray-800/40 rounded-lg" />
+            <div className="flex items-center justify-center gap-3 mb-5">
+              <span className="text-xs text-gray-500">{t('howManyQuestions')}</span>
+              <div className="flex items-center gap-1 bg-gray-800/60 border border-gray-700 rounded-lg px-1.5">
+                <button
+                  onClick={() => setQuestionCount(c => Math.max(1, c - 1))}
+                  className="w-7 h-7 rounded flex items-center justify-center text-gray-400 hover:text-white transition-colors"
+                >
+                  -
+                </button>
+                <span className="w-8 text-center text-sm font-medium text-gray-200">{questionCount}</span>
+                <button
+                  onClick={() => setQuestionCount(c => Math.min(20, c + 1))}
+                  className="w-7 h-7 rounded flex items-center justify-center text-gray-400 hover:text-white transition-colors"
+                >
+                  +
+                </button>
               </div>
-            ))}
+            </div>
+
+            <button
+              onClick={() => fetchQuestions(questionCount)}
+              disabled={images.length === 0}
+              className="px-5 py-2.5 rounded-lg text-sm font-medium bg-rose-600/20 text-rose-400 hover:bg-rose-600/30 border border-rose-500/30 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 mx-auto"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456z" />
+              </svg>
+              {t('generateNQuestions', { count: questionCount })}
+            </button>
+            {images.length === 0 && (
+              <p className="text-gray-600 text-xs mt-2">{t('noQuestionsYet')}</p>
+            )}
           </div>
-        ) : aiQuestions.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-gray-500 text-sm">{t('noQuestionsYet')}</p>
-          </div>
+        ) : isLoadingQuestions ? (
+          <QuestionsLoadingAnimation t={t} stage={questionLoadingStage} />
         ) : (
           <>
-            <p className="text-xs text-gray-500 mb-4">
-              {t('answeredOf', { answered: answeredCount, total: aiQuestions.length })}
-            </p>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs text-gray-500">
+                {t('answeredOf', { answered: answeredCount, total: aiQuestions.length })}
+              </p>
+              <button
+                onClick={skipAllQuestions}
+                className="text-sm text-gray-500 hover:text-gray-300 transition-colors"
+              >
+                {t('skipAll')}
+              </button>
+            </div>
 
             <div className="space-y-4">
               {aiQuestions.slice(0, visibleQuestionCount).map((q, idx) => {
@@ -328,46 +468,6 @@ export default function StepYourStory() {
               </motion.p>
             )}
 
-            {/* Generate more questions */}
-            <div className="flex items-center justify-center gap-3 mt-6 pt-4 border-t border-gray-800/50">
-              <span className="text-sm text-gray-500">{t('wantMore')}</span>
-              <div className="flex items-center gap-1.5 bg-gray-800/60 border border-gray-700 rounded-lg px-1.5">
-                <button
-                  onClick={() => setMoreCount(c => Math.max(1, c - 1))}
-                  className="w-7 h-7 rounded flex items-center justify-center text-gray-400 hover:text-white transition-colors"
-                >
-                  -
-                </button>
-                <input
-                  type="number"
-                  min={1}
-                  max={20}
-                  value={moreCount}
-                  onChange={(e) => setMoreCount(Math.max(1, Math.min(20, parseInt(e.target.value) || 1)))}
-                  className="w-10 text-center bg-transparent text-sm text-gray-200 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                />
-                <button
-                  onClick={() => setMoreCount(c => Math.min(20, c + 1))}
-                  className="w-7 h-7 rounded flex items-center justify-center text-gray-400 hover:text-white transition-colors"
-                >
-                  +
-                </button>
-              </div>
-              <button
-                onClick={() => fetchMoreQuestions(moreCount)}
-                disabled={isLoadingMoreQuestions}
-                className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white border border-gray-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                {isLoadingMoreQuestions ? (
-                  <>
-                    <LoadingSpinner size="xs" />
-                    {t('generating')}
-                  </>
-                ) : (
-                  t('generateMore', { count: moreCount })
-                )}
-              </button>
-            </div>
           </>
         )}
       </div>

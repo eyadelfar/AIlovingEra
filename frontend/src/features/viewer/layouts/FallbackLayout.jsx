@@ -22,7 +22,7 @@ function computeGrid(count) {
   return { cols, rows };
 }
 
-function PhotoGrid({ photos, P, style, cols, hasText }) {
+function PhotoGrid({ photos, P, cols, hasText }) {
   const rows = Math.ceil(photos.length / cols);
   const gridRows = [];
 
@@ -53,7 +53,7 @@ function PhotoGrid({ photos, P, style, cols, hasText }) {
   );
 }
 
-export default function FallbackLayout({ page, photos, photoIndices, style, photoFilter, photoAnalyses, cropOverrides, filterOverrides, P }) {
+export default function FallbackLayout({ page, photos, style, P }) {
   const count = photos.length;
 
   if (count === 0) {
@@ -72,10 +72,12 @@ export default function FallbackLayout({ page, photos, photoIndices, style, phot
       <PageShell style={style} className={`${style.innerPadding} flex flex-col`}>
         <div className="relative z-20 flex flex-col h-full">
           <div className="overflow-hidden rounded-lg flex-[7.5] min-h-0"><PhotoImg {...P(0)} heroFrame /></div>
-          <div className="flex-1 flex flex-col items-center justify-center min-h-0 pt-3">
-            {page.heading_text && <h3 data-ts="heading" className={`font-semibold ${style.heading} mb-1 text-center`}>{page.heading_text}</h3>}
-            <Divider className={style.divider} />
-            {page.body_text && <p data-ts="body" className={`${style.body} text-xs mt-2 text-center line-clamp-2`}>{page.body_text}</p>}
+          <div className="flex-[2] flex flex-col items-center justify-center min-h-0 pt-3">
+            <div className="flex flex-col items-center">
+              {page.heading_text && <h3 data-ts="heading" className={`font-semibold ${style.heading} mb-1 text-center`}>{page.heading_text}</h3>}
+              <Divider className={style.divider} />
+              {page.body_text && <p data-ts="body" className={`${style.body} text-xs mt-2 text-center`}>{page.body_text}</p>}
+            </div>
           </div>
         </div>
       </PageShell>
@@ -88,9 +90,11 @@ export default function FallbackLayout({ page, photos, photoIndices, style, phot
         <div className="relative z-20 flex flex-col h-full gap-2">
           <div className="overflow-hidden rounded-lg flex-[4] min-h-0"><PhotoImg {...P(0)} heroFrame /></div>
           <div className="overflow-hidden rounded-lg flex-[3.5] min-h-0"><PhotoImg {...P(1)} altFrame /></div>
-          <div className="flex-1 flex items-center min-h-0 gap-3">
-            {page.heading_text && <h3 data-ts="heading" className={`font-semibold ${style.heading} flex-shrink-0`}>{page.heading_text}</h3>}
-            {page.body_text && <p data-ts="body" className={`${style.body} text-xs line-clamp-2`}>{page.body_text}</p>}
+          <div className="flex-[1.5] flex items-center justify-center min-h-0 gap-3 px-3">
+            <div className="flex items-center justify-center gap-3 text-center">
+              {page.heading_text && <h3 data-ts="heading" className={`font-semibold ${style.heading} flex-shrink-0`}>{page.heading_text}</h3>}
+              {page.body_text && <p data-ts="body" className={`${style.body} text-xs`}>{page.body_text}</p>}
+            </div>
           </div>
         </div>
       </PageShell>
@@ -110,9 +114,11 @@ export default function FallbackLayout({ page, photos, photoIndices, style, phot
               <div key={i + 2} className="flex-1 h-full overflow-hidden rounded-lg"><PhotoImg {...P(i + 2)} altFrame={i % 2 === 0} /></div>
             ))}
           </div>
-          <div className="flex-1 flex items-center min-h-0 gap-3">
-            {page.heading_text && <h3 data-ts="heading" className={`font-semibold ${style.heading} flex-shrink-0`}>{page.heading_text}</h3>}
-            {page.body_text && <p data-ts="body" className={`${style.body} text-xs line-clamp-2`}>{page.body_text}</p>}
+          <div className="flex-[1.5] flex items-center justify-center min-h-0 gap-3 px-3">
+            <div className="flex items-center justify-center gap-3 text-center">
+              {page.heading_text && <h3 data-ts="heading" className={`font-semibold ${style.heading} flex-shrink-0`}>{page.heading_text}</h3>}
+              {page.body_text && <p data-ts="body" className={`${style.body} text-xs`}>{page.body_text}</p>}
+            </div>
           </div>
         </div>
       </PageShell>
@@ -128,9 +134,11 @@ export default function FallbackLayout({ page, photos, photoIndices, style, phot
       <div className="relative z-20 flex flex-col h-full gap-1">
         <PhotoGrid photos={photos} P={P} style={style} cols={cols} hasText={hasText} />
         {hasText && (
-          <div className="flex-1 flex items-center justify-center min-h-0 max-h-8">
-            {page.heading_text && <h3 data-ts="heading" className={`font-semibold ${style.heading} text-center text-xs`}>{page.heading_text}</h3>}
-            {page.caption_text && <p data-ts="caption" className={`text-[10px] ${style.caption} ml-2`}>{page.caption_text}</p>}
+          <div className="flex-[1.5] flex items-center justify-center min-h-0 px-3">
+            <div className="flex items-center justify-center gap-2 text-center">
+              {page.heading_text && <h3 data-ts="heading" className={`font-semibold ${style.heading} text-center text-xs`}>{page.heading_text}</h3>}
+              {page.caption_text && <p data-ts="caption" className={`text-[10px] ${style.caption}`}>{page.caption_text}</p>}
+            </div>
           </div>
         )}
       </div>

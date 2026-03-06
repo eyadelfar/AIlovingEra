@@ -1,27 +1,44 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
+import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 
-const SIZE_CLASSES = {
+type ModalSize = 'sm' | 'md' | 'lg' | 'xl';
+
+interface BaseModalProps {
+  title?: string;
+  onClose: () => void;
+  size?: ModalSize;
+  scrollable?: boolean;
+  children: ReactNode;
+}
+
+const SIZE_CLASSES: Record<ModalSize, string> = {
   sm: 'max-w-sm',
   md: 'max-w-md',
   lg: 'max-w-lg',
   xl: 'max-w-xl',
 };
 
-/**
- * Shared modal wrapper — handles overlay, escape key, click-outside-close,
- * body scroll lock, and focus management.
- */
-export default function BaseModal({ title, onClose, size = 'md', scrollable = false, children }) {
+export default function BaseModal({ title, onClose, size = 'md', scrollable = false, children }: BaseModalProps) {
   const { t } = useTranslation();
-  const panelRef = useRef(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     document.body.classList.add('modal-open');
     panelRef.current?.focus();
 
-    function handleKeyDown(e) {
+    function handleKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') onClose();
+      if (e.key === 'Tab' && panelRef.current) {
+        const focusable = panelRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        if (!focusable.length) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
     }
     window.addEventListener('keydown', handleKeyDown);
 
@@ -40,10 +57,13 @@ export default function BaseModal({ title, onClose, size = 'md', scrollable = fa
       aria-label={title || t('modal')}
       onClick={onClose}
     >
-      <div
+      <motion.div
         ref={panelRef}
         tabIndex={-1}
-        className={`bg-gray-900 border border-gray-700 rounded-2xl p-6 ${SIZE_CLASSES[size] || SIZE_CLASSES.md} w-full outline-none ${scrollable ? 'max-h-[80vh] overflow-y-auto' : ''}`}
+        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+        className={`bg-gray-900 border border-gray-700 rounded-2xl p-6 ${SIZE_CLASSES[size]} w-full outline-none ${scrollable ? 'max-h-[80vh] overflow-y-auto' : ''}`}
         onClick={e => e.stopPropagation()}
       >
         {title && (
@@ -61,7 +81,7 @@ export default function BaseModal({ title, onClose, size = 'md', scrollable = fa
           </div>
         )}
         {children}
-      </div>
+      </motion.div>
     </div>
   );
 }

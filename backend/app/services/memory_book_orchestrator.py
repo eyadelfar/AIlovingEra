@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import time
 from typing import Any, Callable
 
@@ -89,52 +90,56 @@ class MemoryBookOrchestrator:
         )
         await _progress({"stage": "metadata", "message": "Metadata extracted", "progress": 5})
 
-        # Stage A1: Quality scoring (local, instant)
-        log.info("stage_a1_start")
+        # Stage A1 + A2: Quality scoring and duplicate detection (run in parallel)
+        log.info("stage_a1_a2_start")
         t0 = time.perf_counter()
-        await _progress({"stage": "scoring", "message": "Scoring photo quality...", "progress": 5})
-        quality_scores = score_photos(metadata_list)
-        log.info("stage_a1_complete", duration_ms=round((time.perf_counter() - t0) * 1000, 1))
+        await _progress({"stage": "scoring", "message": "Scoring quality & detecting duplicates...", "progress": 5})
 
-        # Stage A2: Duplicate detection (local, instant)
-        log.info("stage_a2_start")
-        t0 = time.perf_counter()
-        await _progress({"stage": "dedup", "message": "Detecting duplicates...", "progress": 6})
-        duplicate_groups = detect_duplicates(metadata_list)
+        async def _score():
+            return await asyncio.to_thread(score_photos, metadata_list)
+
+        async def _dedup():
+            return await asyncio.to_thread(detect_duplicates, metadata_list)
+
+        quality_scores, duplicate_groups = await asyncio.gather(_score(), _dedup())
         log.info(
-            "stage_a2_complete",
+            "stage_a1_a2_complete",
             duration_ms=round((time.perf_counter() - t0) * 1000, 1),
             num_duplicate_groups=len(duplicate_groups),
         )
 
-        # Stage A3: Image comparison (optional, non-critical)
-        image_relationships = None
-        if self._image_comparator and num_photos >= 2:
-            log.info("stage_a3_start")
-            t0 = time.perf_counter()
-            await _progress({"stage": "comparing", "message": "Comparing images...", "progress": 6})
+        # Stage A3 + B: Run image comparison and photo analysis concurrently
+        # A3 is optional and non-critical; B is the main AI analysis
+        await _progress({"stage": "analyzing", "message": "Analyzing your photos...", "progress": 8, "current": 0, "total": num_photos})
+        log.info("stage_a3_b_start")
+        t0 = time.perf_counter()
+
+        async def _image_comparison():
+            if not (self._image_comparator and num_photos >= 2):
+                return None
             try:
                 image_data = list(zip(image_bytes, mime_types))
-                image_relationships = await self._image_comparator.compare_images(
+                result = await self._image_comparator.compare_images(
                     image_data, metadata_list,
                 )
                 log.info(
                     "stage_a3_complete",
-                    duration_ms=round((time.perf_counter() - t0) * 1000, 1),
-                    num_pairs=len(image_relationships.pairs),
-                    num_clusters=len(image_relationships.clusters),
+                    num_pairs=len(result.pairs),
+                    num_clusters=len(result.clusters),
                 )
+                return result
             except Exception:
                 log.warning("stage_a3_failed", exc_info=True)
-                image_relationships = None
-            await _progress({"stage": "comparing", "message": "Image comparison complete", "progress": 7})
+                return None
 
-        # Stage B: AI Photo Analysis + Clustering (batched for large sets)
-        await _progress({"stage": "analyzing", "message": "Analyzing your photos...", "progress": 8, "current": 0, "total": num_photos})
-        log.info("stage_b_start")
-        t0 = time.perf_counter()
-        photo_analyses_raw, clusters = await self._run_photo_analysis(
-            image_bytes, mime_types, metadata_dicts, num_photos, on_progress=on_progress,
+        async def _photo_analysis():
+            return await self._run_photo_analysis(
+                image_bytes, mime_types, metadata_dicts, num_photos, on_progress=on_progress,
+            )
+
+        # Run both concurrently — A3 doesn't block B
+        image_relationships, (photo_analyses_raw, clusters) = await asyncio.gather(
+            _image_comparison(), _photo_analysis(),
         )
 
         # Ensure we have analyses for all photos
@@ -370,23 +375,34 @@ class MemoryBookOrchestrator:
         partner_names: list[str],
         relationship_type: str,
         locale: str = "en",
+        question_count: int = 6,
+        on_progress: Callable[[dict], Any] | None = None,
     ) -> list[dict]:
         """Run Stage A + B, then generate contextual questions."""
         num_photos = len(image_bytes)
 
-        # Stage A
+        async def _emit(event: dict):
+            if on_progress:
+                await on_progress(event)
+
+        # Stage A: extract EXIF metadata
+        await _emit({"stage": "metadata", "message": "Reading photo metadata...", "progress": 5})
         metadata_list = await extract_photo_metadata(image_bytes, mime_types)
         metadata_dicts = [m.model_dump() for m in metadata_list]
 
-        # Stage B (batched)
+        # Stage B: AI photo analysis (batched)
+        await _emit({"stage": "analyzing", "message": f"Analyzing {num_photos} photos...", "progress": 15})
         logger.info("generating_questions", num_photos=num_photos)
         photo_analyses_raw, _ = await self._run_photo_analysis(
             image_bytes, mime_types, metadata_dicts, num_photos,
+            on_progress=on_progress,
         )
 
-        # Build and send questions prompt
+        # Stage C: generate questions from analyses
+        await _emit({"stage": "generating", "message": f"Crafting {question_count} personalized questions...", "progress": 75})
         questions_prompt = self._builder.build_questions_prompt(
-            photo_analyses_raw, partner_names, relationship_type, locale=locale,
+            photo_analyses_raw, partner_names, relationship_type,
+            locale=locale, question_count=question_count,
         )
         questions_result = await self._ai.generate_content(questions_prompt, [], [])
         return self._parser.parse_questions(questions_result.text)
@@ -456,6 +472,9 @@ class MemoryBookOrchestrator:
     def _STAGE_B_MAX_TOKENS(self) -> int:
         return self._settings.stage_b_max_tokens
 
+    # Maximum number of concurrent AI batch calls to avoid rate limiting
+    _MAX_CONCURRENT_BATCHES = 2
+
     async def _run_photo_analysis(
         self,
         image_bytes: list[bytes],
@@ -464,48 +483,70 @@ class MemoryBookOrchestrator:
         num_photos: int,
         on_progress: "Callable[[dict], Any] | None" = None,
     ) -> tuple[list[dict], list[dict]]:
-        """Run Stage B photo analysis, batching if >10 photos."""
+        """Run Stage B photo analysis, batching if >10 photos.
+        Batches run concurrently (up to _MAX_CONCURRENT_BATCHES at a time)."""
         if num_photos <= self._BATCH_SIZE:
             return await self._run_single_analysis(
                 image_bytes, mime_types, metadata_dicts, num_photos, offset=0,
             )
 
-        # Batch into chunks
-        all_analyses: list[dict] = []
-        all_raw_texts: list[str] = []
+        # Build batch specs
         total_batches = (num_photos + self._BATCH_SIZE - 1) // self._BATCH_SIZE
-        batch_num = 0
-        for start in range(0, num_photos, self._BATCH_SIZE):
+        batches = []
+        for batch_num, start in enumerate(range(0, num_photos, self._BATCH_SIZE), 1):
             end = min(start + self._BATCH_SIZE, num_photos)
-            batch_size = end - start
-            batch_num += 1
-            logger.info(
-                "stage_b_batch",
-                batch_num=batch_num,
-                total_batches=total_batches,
-                photo_start=start,
-                photo_end=end - 1,
-                batch_size=batch_size,
-            )
+            batches.append((batch_num, start, end))
 
-            if on_progress:
-                # Scale progress from 8 to 40 across batches
-                batch_progress = 8 + int(32 * (batch_num - 1) / total_batches)
-                await on_progress({
-                    "stage": "analyzing",
-                    "message": f"Analyzing photos {start + 1}-{end} of {num_photos}...",
-                    "progress": batch_progress,
-                    "current": start,
-                    "total": num_photos,
-                })
+        if on_progress:
+            await on_progress({
+                "stage": "analyzing",
+                "message": f"Analyzing {num_photos} photos in {total_batches} batches...",
+                "progress": 8,
+                "current": 0,
+                "total": num_photos,
+            })
 
-            batch_analyses, _ = await self._run_single_analysis(
-                image_bytes[start:end],
-                mime_types[start:end],
-                metadata_dicts[start:end],
-                batch_size,
-                offset=start,
-            )
+        # Semaphore limits concurrent AI calls to avoid rate limiting
+        sem = asyncio.Semaphore(self._MAX_CONCURRENT_BATCHES)
+        completed = {"count": 0}
+
+        async def _process_batch(batch_num, start, end):
+            async with sem:
+                batch_size = end - start
+                logger.info(
+                    "stage_b_batch",
+                    batch_num=batch_num,
+                    total_batches=total_batches,
+                    photo_start=start,
+                    photo_end=end - 1,
+                    batch_size=batch_size,
+                )
+                batch_analyses, _ = await self._run_single_analysis(
+                    image_bytes[start:end],
+                    mime_types[start:end],
+                    metadata_dicts[start:end],
+                    batch_size,
+                    offset=start,
+                )
+                completed["count"] += 1
+                if on_progress:
+                    batch_progress = 8 + int(32 * completed["count"] / total_batches)
+                    await on_progress({
+                        "stage": "analyzing",
+                        "message": f"Analyzed batch {completed['count']}/{total_batches} ({end} of {num_photos} photos)...",
+                        "progress": batch_progress,
+                        "current": end,
+                        "total": num_photos,
+                    })
+                return batch_analyses
+
+        # Launch all batches concurrently (semaphore limits concurrency)
+        batch_results = await asyncio.gather(
+            *[_process_batch(bn, s, e) for bn, s, e in batches]
+        )
+
+        all_analyses = []
+        for batch_analyses in batch_results:
             all_analyses.extend(batch_analyses)
 
         logger.info(

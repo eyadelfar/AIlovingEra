@@ -50,23 +50,27 @@ router = APIRouter(prefix="/api/books", tags=["books"])
 
 
 async def _validate_images(images: list[UploadFile]) -> tuple[list[bytes], list[str]]:
-    """Validate and read uploaded images. Returns (image_bytes, mime_types)."""
+    """Validate and read uploaded images concurrently. Returns (image_bytes, mime_types)."""
     if len(images) > MAX_IMAGES:
         raise HTTPException(status_code=422, detail=f"Too many images ({len(images)}). Maximum is {MAX_IMAGES}.")
 
-    image_bytes: list[bytes] = []
+    # Validate content types first (no I/O)
     mime_types: list[str] = []
     for i, upload in enumerate(images):
         ct = (upload.content_type or "").lower()
         if ct not in ALLOWED_IMAGE_TYPES:
             raise HTTPException(status_code=422, detail=f"Image {i + 1} has unsupported type '{ct}'. Allowed: JPEG, PNG, WebP, HEIC, HEIF.")
-        data = await upload.read()
-        if len(data) > MAX_IMAGE_SIZE:
-            raise HTTPException(status_code=422, detail=f"Image {i + 1} exceeds 20 MB size limit.")
-        image_bytes.append(data)
         mime_types.append(ct)
 
-    return image_bytes, mime_types
+    # Read all files concurrently
+    image_bytes = await asyncio.gather(*[upload.read() for upload in images])
+
+    # Validate sizes
+    for i, data in enumerate(image_bytes):
+        if len(data) > MAX_IMAGE_SIZE:
+            raise HTTPException(status_code=422, detail=f"Image {i + 1} exceeds 20 MB size limit.")
+
+    return list(image_bytes), mime_types
 
 
 @router.post("/generate", response_model=BookGenerationResponse)
@@ -804,6 +808,87 @@ async def generate_questions(
         ))
 
     return AIQuestionsResponse(questions=questions)
+
+
+@router.post("/questions/stream")
+async def generate_questions_stream(
+    images: list[UploadFile],
+    partner_names_json: str = Form("[]"),
+    relationship_type: str = Form("couple"),
+    locale: str = Form("en"),
+    question_count: int = Form(6),
+    orchestrator: MemoryBookOrchestrator = Depends(get_orchestrator),
+) -> StarletteStreamingResponse:
+    """SSE endpoint for question generation with real-time progress."""
+    image_bytes, mime_types = await _validate_images(images)
+
+    try:
+        names = json.loads(partner_names_json) if partner_names_json else []
+        if not isinstance(names, list):
+            names = []
+    except Exception:
+        names = []
+
+    # Clamp to reasonable range
+    q_count = max(1, min(20, question_count))
+
+    progress_queue: asyncio.Queue = asyncio.Queue()
+
+    async def on_progress(event: dict):
+        await progress_queue.put(event)
+
+    async def generate_and_stream():
+        try:
+            questions_raw = await orchestrator.generate_questions(
+                image_bytes=image_bytes,
+                mime_types=mime_types,
+                partner_names=names,
+                relationship_type=relationship_type,
+                locale=locale,
+                question_count=q_count,
+                on_progress=on_progress,
+            )
+
+            questions = []
+            for q in questions_raw:
+                questions.append({
+                    "question_id": q.get("question_id", f"q{len(questions)}"),
+                    "question_text": q.get("question_text", ""),
+                    "context_hint": q.get("context_hint", ""),
+                    "related_photo_indices": q.get("related_photo_indices", []),
+                })
+
+            await progress_queue.put({
+                "stage": "complete",
+                "progress": 100,
+                "questions": questions,
+            })
+        except Exception as exc:
+            logger.error("questions_stream_error", exc_info=True)
+            error_msg = str(exc) if str(exc) else "Question generation failed"
+            if "rate" in error_msg.lower() or "quota" in error_msg.lower():
+                error_msg = "AI service rate limit reached. Please try again in a moment."
+            else:
+                error_msg = "Failed to generate questions. Please try again."
+            await progress_queue.put({"stage": "error", "message": error_msg})
+
+    async def event_stream():
+        task = asyncio.create_task(generate_and_stream())
+        while True:
+            try:
+                event = await asyncio.wait_for(progress_queue.get(), timeout=15.0)
+                yield f"data: {json.dumps(event)}\n\n"
+                if event.get("stage") in ("complete", "error"):
+                    break
+            except asyncio.TimeoutError:
+                yield ": heartbeat\n\n"
+        await task
+
+    return StarletteStreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @router.post("/generate-image", response_model=ImageGenerationResponse)

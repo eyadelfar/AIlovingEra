@@ -1,4 +1,4 @@
-import { apiJson, apiFetch } from '../lib/api';
+import { apiJson } from '../lib/api';
 
 // Dashboard
 export const fetchDashboardStats = () => apiJson('/api/admin/dashboard/stats');

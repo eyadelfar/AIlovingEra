@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import toast from 'react-hot-toast';
 import { PLANS, ONE_TIME_PLANS, SUBSCRIPTION_PLANS } from '../../lib/pricing';
 import useAuthStore from '../../stores/authStore';
 import { apiJson } from '../../lib/api';
@@ -37,7 +38,7 @@ export default function PricingPage() {
       });
       window.location.href = url;
     } catch (err) {
-      console.error('Checkout error:', err);
+      toast.error(err?.message || t('checkoutError', { ns: 'common', defaultValue: 'Checkout failed. Please try again.' }));
       setLoading('');
     }
   };
