@@ -38,11 +38,13 @@ class StripeService:
         self, plan_id: str, user_id: str, user_email: str
     ) -> str:
         """Create a Stripe Checkout Session and return the URL."""
+        logger.info("create_checkout_session", user_id=user_id, plan_id=plan_id)
         if not self.api_key:
             raise ValueError("Stripe not configured")
 
         price_id = self.price_map.get(plan_id)
         if not price_id:
+            logger.error("create_checkout_session_unknown_plan", plan_id=plan_id)
             raise ValueError(f"Unknown plan: {plan_id}")
 
         is_subscription = plan_id in SUBSCRIPTION_PLANS
@@ -63,15 +65,19 @@ class StripeService:
             allow_promotion_codes=True,
             idempotency_key=idempotency_key,
         )
+        logger.info("create_checkout_session_done", user_id=user_id, plan_id=plan_id, mode=mode)
         return session.url
 
     def verify_webhook(self, payload: bytes, sig_header: str) -> dict:
         """Verify and parse a Stripe webhook event."""
+        logger.info("verify_webhook")
         if not self.webhook_secret:
             raise ValueError("Webhook secret not configured")
         event = stripe.Webhook.construct_event(payload, sig_header, self.webhook_secret)
+        logger.info("verify_webhook_done", event_type=event.get("type"))
         return event
 
     def get_session(self, session_id: str) -> dict:
         """Retrieve a checkout session by ID."""
+        logger.info("get_session", session_id=session_id)
         return stripe.checkout.Session.retrieve(session_id)

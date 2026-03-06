@@ -61,7 +61,9 @@ class ImageComparator:
         Returns an ``ImageRelationships`` even on failure (empty but valid).
         """
         n = len(image_data)
+        logger.info("compare_images_start", num_images=n)
         if n < 2:
+            logger.info("compare_images_skip", reason="fewer_than_2_images")
             return ImageRelationships()
 
         pairs_to_compare = self._select_pairs(n)

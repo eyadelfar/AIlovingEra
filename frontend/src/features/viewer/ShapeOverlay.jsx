@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import log from '../../lib/editorLogger';
 
 /**
  * Renders shape overlays for a spread as absolutely positioned SVGs.
@@ -22,7 +23,7 @@ export default function ShapeOverlay({ shapes, isEditMode, onUpdate, onRemove, c
   if (!shapes || shapes.length === 0) return null;
 
   return (
-    <div className="absolute inset-0 pointer-events-none z-10">
+    <div className="absolute inset-0 pointer-events-none z-30">
       {shapes.map(shape => (
         <ShapeElement
           key={shape.id}
@@ -52,6 +53,7 @@ function ShapeElement({ shape, isEditMode, isSelected, onSelect, onDeselect, onU
     e.preventDefault();
     e.stopPropagation();
     onSelect();
+    log.action('shape', 'drag:start', { id: shape.id, xPct: shape.xPct, yPct: shape.yPct });
 
     const container = containerRef?.current;
     if (!container) return;
@@ -156,9 +158,11 @@ function ShapeElement({ shape, isEditMode, isSelected, onSelect, onDeselect, onU
 
   const handleKeyDown = useCallback((e) => {
     if (e.key === 'Delete' || e.key === 'Backspace') {
+      log.action('shape', 'delete', { id: shape.id });
       onRemove(shape.id);
     }
     if (e.key === 'Escape') {
+      log.action('shape', 'deselect', { id: shape.id });
       onDeselect();
     }
   }, [shape.id, onRemove, onDeselect]);

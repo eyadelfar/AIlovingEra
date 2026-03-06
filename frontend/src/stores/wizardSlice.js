@@ -1,5 +1,6 @@
 import { MAX_IMAGES, VIBE_IMAGE_LOOK_DEFAULTS } from '../lib/constants';
 import { trackEvent } from '../lib/eventTracker';
+import log from '../lib/editorLogger';
 
 export const createWizardSlice = (set, get) => ({
   currentStep: 0,
@@ -14,6 +15,7 @@ export const createWizardSlice = (set, get) => ({
   constraints: [],
 
   setStep: (step) => {
+    log.action('wizard', 'setStep', { step });
     set({ currentStep: step });
     trackEvent('step_entered', 'wizard', { step });
   },
@@ -27,6 +29,7 @@ export const createWizardSlice = (set, get) => ({
   prevStep: () => set((s) => ({ currentStep: Math.max(s.currentStep - 1, 0) })),
 
   setTemplate: (slug) => {
+    log.action('wizard', 'setTemplate', { slug });
     set({ selectedTemplate: slug });
     trackEvent('template_selected', 'wizard', { template: slug });
   },
@@ -35,6 +38,7 @@ export const createWizardSlice = (set, get) => ({
   addImages: (files) => {
     const current = get().images.length;
     const allowed = MAX_IMAGES - current;
+    log.action('wizard', 'addImages', { fileCount: files?.length, currentCount: current, allowed });
     if (allowed <= 0) return;
     const incoming = Array.from(files).slice(0, allowed);
     const newImages = incoming.map(file => ({
@@ -87,6 +91,7 @@ export const createWizardSlice = (set, get) => ({
   setPartnerNames: (names) => set({ partnerNames: names }),
   setOccasion: (occ) => set({ occasion: occ }),
   setVibe: (vibe) => {
+    log.action('wizard', 'setVibe', { vibe });
     const defaultLook = VIBE_IMAGE_LOOK_DEFAULTS[vibe];
     set(defaultLook ? { vibe, imageLook: defaultLook } : { vibe });
     trackEvent('vibe_selected', 'wizard', { vibe });

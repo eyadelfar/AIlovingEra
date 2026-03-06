@@ -30,6 +30,7 @@ async def track_events(
     user: dict | None = Depends(get_current_user),
     supa: SupabaseService = Depends(get_supabase_service),
 ):
+    logger.info("track_events", event_count=len(body.events), user_id=user.get("sub") if user else None)
     if len(body.events) > 50:
         raise HTTPException(422, "Maximum 50 events per batch")
 
@@ -47,4 +48,5 @@ async def track_events(
         })
 
     await supa.batch_insert_events(rows)
+    logger.info("track_events_done", inserted=len(rows))
     return {"ok": True, "count": len(rows)}

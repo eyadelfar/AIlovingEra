@@ -32,6 +32,7 @@ class GeminiService(AbstractAIService):
         mime_types: list[str],
         max_output_tokens: int | None = None,
     ) -> AIServiceResult:
+        logger.info("generate_content_start", model=self._model_name, num_images=len(images), prompt_chars=len(prompt))
         # Build parts list: uploaded images first, then the prompt text.
         parts: list = [
             types.Part.from_bytes(data=img, mime_type=mime)

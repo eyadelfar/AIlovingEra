@@ -1,5 +1,6 @@
 import { apiJson, apiBlob, getAccessToken, forceRefreshToken } from '../lib/api';
 import { compressImagesForAPI, compressImagesForPDF, isUploadable } from '../lib/imageUtils';
+import log from '../lib/editorLogger';
 
 /**
  * Authenticated fetch with 401 retry for streaming endpoints that bypass apiFetch.
@@ -86,6 +87,7 @@ export async function generateBook({
   const { default: i18n } = await import('../lib/i18n');
   form.append('locale', i18n.language || 'en');
 
+  log.action('bookApi', 'generateBook', { imageCount: images.length, template: templateSlug, vibe });
   return apiJson('/api/books/generate', { method: 'POST', body: form, timeout: 300_000 });
 }
 
@@ -153,6 +155,7 @@ export async function generateBookStream({
   const { default: i18n } = await import('../lib/i18n');
   form.append('locale', i18n.language || 'en');
 
+  log.action('bookApi', 'generateBookStream:start', { imageCount: images.length, template: templateSlug });
   const BASE = import.meta.env.VITE_API_BASE_URL ?? '';
   const res = await authFetch(`${BASE}/api/books/generate/stream`, {
     method: 'POST',
@@ -167,6 +170,7 @@ export async function generateBookStream({
       const json = JSON.parse(text);
       if (json.detail) message = typeof json.detail === 'string' ? json.detail : JSON.stringify(json.detail);
     } catch { /* ignore */ }
+    log.action('bookApi', 'generateBookStream:error', { status: res.status, message });
     throw new Error(message);
   }
 
@@ -291,6 +295,7 @@ function _buildSettingsBody(sessionId, settings) {
  * @returns {{ session_id: string, image_count: number }}
  */
 export async function uploadImages(images) {
+  log.action('bookApi', 'uploadImages', { count: images.length });
   const form = new FormData();
   images.forEach(img => {
     if (isUploadable(img.file)) form.append('images', img.file);
@@ -305,6 +310,7 @@ export async function uploadImages(images) {
  * @param {AbortSignal} signal
  */
 export async function analyzeStream(sessionId, onProgress, signal) {
+  log.action('bookApi', 'analyzeStream', { sessionId });
   const form = new FormData();
   form.append('session_id', sessionId);
 
@@ -328,6 +334,7 @@ export async function analyzeStream(sessionId, onProgress, signal) {
  * @returns {{ session_id, plan, estimated_pages, num_chapters, num_spreads }}
  */
 export async function planBook(sessionId, settings) {
+  log.action('bookApi', 'planBook', { sessionId, template: settings.templateSlug });
   const body = _buildSettingsBody(sessionId, settings);
   return apiJson('/api/books/plan', {
     method: 'POST',
@@ -342,6 +349,7 @@ export async function planBook(sessionId, settings) {
  * @returns {Promise<object>} The final generation result (draft + photo_analyses)
  */
 export async function writeBookStream(sessionId, settings, onProgress, signal, planOverride) {
+  log.action('bookApi', 'writeBookStream', { sessionId, hasPlanOverride: !!planOverride });
   const body = _buildSettingsBody(sessionId, settings);
   if (planOverride) body.plan_override = planOverride;
 
@@ -371,6 +379,7 @@ export async function writeBookStream(sessionId, settings, onProgress, signal, p
  * Returns the final event's result (for complete events) or the complete event itself.
  */
 async function _readSSEStream(res, onProgress) {
+  log.action('bookApi', 'sse:streamStart');
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
@@ -395,12 +404,15 @@ async function _readSSEStream(res, onProgress) {
           if (event.stage === 'complete') {
             finalResult = event.result || event;
             if (event.preview_only) finalResult.preview_only = true;
+            log.action('bookApi', 'sse:complete', { hasResult: !!finalResult });
             onProgress?.({ stage: 'complete', progress: 100, ...event });
           } else if (event.stage === 'error') {
+            log.action('bookApi', 'sse:error', { message: event.message });
             const err = new Error(event.message || 'Stream failed');
             err.generationId = event.generation_id;
             throw err;
           } else {
+            log.action('bookApi', 'sse:progress', { stage: event.stage, progress: event.progress });
             onProgress?.(event);
           }
         } catch (e) {
@@ -467,6 +479,7 @@ export async function fetchAIQuestionsStream({ images, partnerNames, relationshi
 }
 
 export async function generateAIImage({ prompt, styleHint, imageLook }) {
+  log.action('bookApi', 'generateAIImage', { promptLen: prompt?.length, imageLook });
   const form = new FormData();
   form.append('prompt', prompt);
   form.append('style_hint', styleHint || '');
@@ -475,6 +488,7 @@ export async function generateAIImage({ prompt, styleHint, imageLook }) {
 }
 
 export async function enhanceImage({ imageFile, styleHint, imageLook, vibe, context }) {
+  log.action('bookApi', 'enhanceImage', { imageLook, vibe });
   const form = new FormData();
   form.append('image', imageFile);
   form.append('style_hint', styleHint || '');
@@ -493,6 +507,7 @@ export async function generateCartoon(images, style = 'chibi') {
 }
 
 export async function regenerateText(request) {
+  log.action('bookApi', 'regenerateText', { field: request.field_name, chapterIdx: request.chapter_index });
   return apiJson('/api/books/regenerate-text', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -501,6 +516,7 @@ export async function regenerateText(request) {
 }
 
 export async function downloadBookPdf({ draft, images, templateSlug, designScale, photoAnalyses, filename, cropOverrides, filterOverrides, textStyleOverrides, positionOffsets, blendOverrides, sizeOverrides, signal, customPageSize, onProgress, transformBlob }) {
+  log.action('bookApi', 'downloadPdf:start', { imageCount: images?.length, template: templateSlug, pageSize: designScale?.pageSize });
   // Pre-compress images for PDF quality (2400px, 0.92 quality)
   const compressed = await compressImagesForPDF(images, { onProgress });
   const form = new FormData();
@@ -667,6 +683,7 @@ async function _downloadPdfViaSSE(base, form, signal, onProgress) {
  * @returns {{ unlocked: boolean, credits_remaining: number }}
  */
 export async function unlockBook(generationId) {
+  log.action('bookApi', 'unlockBook', { generationId });
   return apiJson('/api/books/unlock', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

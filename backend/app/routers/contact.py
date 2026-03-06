@@ -25,11 +25,17 @@ async def submit_contact(
     supa: SupabaseService = Depends(get_supabase_service),
 ):
     user_id = user.get("sub") if user else None
-    await supa.create_contact_submission({
-        "name": body.name,
-        "email": body.email,
-        "subject": body.subject,
-        "message": body.message,
-        "user_id": user_id,
-    })
+    logger.info("submit_contact", user_id=user_id, subject=body.subject)
+    try:
+        await supa.create_contact_submission({
+            "name": body.name,
+            "email": body.email,
+            "subject": body.subject,
+            "message": body.message,
+            "user_id": user_id,
+        })
+    except Exception as e:
+        logger.error("submit_contact_failed", user_id=user_id, error=str(e))
+        raise
+    logger.info("submit_contact_done", user_id=user_id)
     return {"status": "submitted"}

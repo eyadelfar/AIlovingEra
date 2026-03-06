@@ -20,11 +20,13 @@ async def require_admin(
     Checks the DB on every request so role changes take effect immediately.
     """
     user_id = user.get("sub")
+    logger.info("require_admin_check", user_id=user_id)
     if not user_id:
         raise HTTPException(status_code=401, detail="Authentication required")
 
     profile = await supa.get_profile(user_id)
     if not profile:
+        logger.warning("require_admin_no_profile", user_id=user_id)
         raise HTTPException(status_code=403, detail="Profile not found")
 
     role = profile.get("role", "user")
@@ -36,4 +38,5 @@ async def require_admin(
     user["role"] = role
     user["user_id"] = user_id
     user["profile"] = profile
+    logger.info("require_admin_granted", user_id=user_id, role=role)
     return user

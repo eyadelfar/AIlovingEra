@@ -6,6 +6,46 @@ import PageRenderer from '../features/viewer/PageRenderer';
 import { buildPageToSpreadMap } from './gridUtils';
 import { loadGoogleFont } from './fontLoader';
 import useBookStore from '../stores/bookStore';
+import log from './editorLogger';
+
+/**
+ * Convert a blob: URL to a data URI so it works in offscreen DOM for html2canvas.
+ */
+async function blobUrlToDataUri(blobUrl) {
+  const resp = await fetch(blobUrl);
+  const blob = await resp.blob();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+/**
+ * Convert all blob: URLs in the images array to data URIs.
+ * Returns a new images array with previewUrl replaced.
+ */
+async function convertBlobUrls(images) {
+  if (!images?.length) return images;
+  const converted = [];
+  for (let i = 0; i < images.length; i++) {
+    const img = images[i];
+    if (img?.previewUrl?.startsWith('blob:')) {
+      try {
+        const dataUri = await blobUrlToDataUri(img.previewUrl);
+        converted.push({ ...img, previewUrl: dataUri });
+        log.action('videoExport', 'blobConverted', { index: i });
+      } catch (err) {
+        log.action('videoExport', 'blobConvertFailed', { index: i, error: err.message });
+        converted.push(img);
+      }
+    } else {
+      converted.push(img);
+    }
+  }
+  return converted;
+}
 
 /**
  * Wait until all <img> elements inside a container have loaded (or timeout).
@@ -79,6 +119,21 @@ async function capturePageOffscreen(page, pageIdx, { images, templateSlug, photo
   await waitForImages(wrapper, 5000);
   await document.fonts.ready;
 
+  // Replace blob: URLs with data URIs in offscreen DOM before capture
+  const blobImgs = wrapper.querySelectorAll('img[src^="blob:"]');
+  for (const img of blobImgs) {
+    try {
+      const dataUri = await blobUrlToDataUri(img.src);
+      img.src = dataUri;
+    } catch (err) {
+      log.action('videoExport', 'inlineBlobFailed', { pageIdx, src: img.src.slice(0, 40) });
+    }
+  }
+  // Wait for replaced images to load
+  if (blobImgs.length > 0) {
+    await waitForImages(wrapper, 3000);
+  }
+
   let canvas;
   try {
     canvas = await html2canvas(wrapper, {
@@ -88,9 +143,10 @@ async function capturePageOffscreen(page, pageIdx, { images, templateSlug, photo
       allowTaint: true,
       logging: false,
     });
+    log.action('videoExport', 'pageCaptured', { pageIdx, w: canvas.width, h: canvas.height });
   } catch (err) {
+    log.action('videoExport', 'captureError', { pageIdx, error: err.message });
     console.error('[VideoExport] html2canvas failed for page', pageIdx, err);
-    // Fallback: dark placeholder
     canvas = document.createElement('canvas');
     canvas.width = 800;
     canvas.height = 1120;
@@ -192,14 +248,17 @@ export async function exportBookVideo({
   onProgress,
   signal,
 }) {
-  // ── Step 1: Pre-load fonts ──
+  // ── Step 1: Pre-load fonts + convert blob URLs ──
+  log.action('videoExport', 'start', { pageCount: pages.length });
   onProgress?.(1);
   await preloadFonts();
+  const safeImages = await convertBlobUrls(images);
+  log.action('videoExport', 'blobUrlsConverted', { imageCount: safeImages?.length });
   onProgress?.(5);
 
   // ── Step 2: Capture each page offscreen ──
   const pageToSpreadMap = buildPageToSpreadMap(chapters);
-  const captureCtx = { images, templateSlug, photoAnalyses, cropOverrides, filterOverrides, anniversaryCoverText, pageToSpreadMap };
+  const captureCtx = { images: safeImages, templateSlug, photoAnalyses, cropOverrides, filterOverrides, anniversaryCoverText, pageToSpreadMap };
   const pageCanvases = [];
 
   for (let i = 0; i < pages.length; i++) {

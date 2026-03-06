@@ -1,8 +1,11 @@
+import structlog
 from fastapi import APIRouter, Depends, Query
 
 from app.middleware.admin_auth import require_admin
 from app.dependencies import get_admin_service
 from app.services.admin_service import AdminService
+
+logger = structlog.get_logger()
 
 router = APIRouter(prefix="/api/admin/dashboard", tags=["admin-dashboard"])
 
@@ -12,7 +15,10 @@ async def dashboard_stats(
     _user: dict = Depends(require_admin),
     svc: AdminService = Depends(get_admin_service),
 ):
-    return await svc.get_dashboard_stats()
+    logger.info("admin_dashboard_stats")
+    result = await svc.get_dashboard_stats()
+    logger.info("admin_dashboard_stats_done")
+    return result
 
 
 @router.get("/revenue-chart")
@@ -21,6 +27,7 @@ async def revenue_chart(
     _user: dict = Depends(require_admin),
     svc: AdminService = Depends(get_admin_service),
 ):
+    logger.info("admin_revenue_chart", days=days)
     return await svc.get_revenue_timeseries(days)
 
 
@@ -30,6 +37,7 @@ async def user_growth_chart(
     _user: dict = Depends(require_admin),
     svc: AdminService = Depends(get_admin_service),
 ):
+    logger.info("admin_user_growth_chart", days=days)
     return await svc.get_user_growth_timeseries(days)
 
 
@@ -39,6 +47,7 @@ async def generation_chart(
     _user: dict = Depends(require_admin),
     svc: AdminService = Depends(get_admin_service),
 ):
+    logger.info("admin_generation_chart", days=days)
     return await svc.get_generation_timeseries(days)
 
 
@@ -48,6 +57,7 @@ async def template_popularity(
     _user: dict = Depends(require_admin),
     svc: AdminService = Depends(get_admin_service),
 ):
+    logger.info("admin_template_popularity", limit=limit)
     return await svc.get_template_popularity(limit)
 
 
@@ -57,6 +67,7 @@ async def funnel_stats(
     _user: dict = Depends(require_admin),
     svc: AdminService = Depends(get_admin_service),
 ):
+    logger.info("admin_funnel_stats", days=days)
     return await svc.get_funnel_stats(days)
 
 
@@ -66,6 +77,7 @@ async def event_stats(
     _user: dict = Depends(require_admin),
     svc: AdminService = Depends(get_admin_service),
 ):
+    logger.info("admin_event_stats", days=days)
     return await svc.get_event_stats(days)
 
 
@@ -75,6 +87,7 @@ async def wizard_funnel(
     _user: dict = Depends(require_admin),
     svc: AdminService = Depends(get_admin_service),
 ):
+    logger.info("admin_wizard_funnel", days=days)
     return await svc.get_wizard_funnel(days)
 
 
@@ -84,4 +97,5 @@ async def pdf_stats(
     _user: dict = Depends(require_admin),
     svc: AdminService = Depends(get_admin_service),
 ):
+    logger.info("admin_pdf_stats", days=days)
     return await svc.get_pdf_stats(days)

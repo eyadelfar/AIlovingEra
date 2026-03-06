@@ -23,10 +23,12 @@ export function buildPageToSpreadMap(chapters) {
   if (!chapters?.length) return [];
   const map = [];
 
-  // page 0 = cover (synthetic)
-  map.push(null);
-  // page 1 = dedication (synthetic)
-  map.push(null);
+  // page 0 = book_cover_front (synthetic)
+  map.push({ chapterIdx: 'bcf', spreadIdx: 0, side: null });
+  // page 1 = cover (synthetic)
+  map.push({ chapterIdx: 'cov', spreadIdx: 0, side: null });
+  // page 2 = dedication (synthetic)
+  map.push({ chapterIdx: 'ded', spreadIdx: 0, side: null });
 
   for (let ci = 0; ci < chapters.length; ci++) {
     const spreads = chapters[ci].spreads || [];
@@ -40,8 +42,10 @@ export function buildPageToSpreadMap(chapters) {
     }
   }
 
-  // last page = back_cover (synthetic)
-  map.push(null);
+  // back_cover (synthetic)
+  map.push({ chapterIdx: 'bck', spreadIdx: 0, side: null });
+  // book_cover_back (synthetic)
+  map.push({ chapterIdx: 'bcb', spreadIdx: 0, side: null });
   return map;
 }
 

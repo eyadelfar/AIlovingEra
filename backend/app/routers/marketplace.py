@@ -24,6 +24,7 @@ async def list_designs(
     supa: SupabaseService = Depends(get_supabase_service),
 ):
     """List marketplace designs with optional filters."""
+    logger.info("list_designs", category=category, search=search, free_only=free_only, page=page)
     if not supa.client:
         return {"designs": [], "total": 0}
 
@@ -41,6 +42,7 @@ async def list_designs(
     query = query.range(offset, offset + page_size - 1)
 
     result = await asyncio.to_thread(query.execute)
+    logger.info("list_designs_done", count=len(result.data or []), total=result.count or 0)
     return {"designs": result.data or [], "total": result.count or 0}
 
 
@@ -50,6 +52,7 @@ async def get_design(
     supa: SupabaseService = Depends(get_supabase_service),
 ):
     """Get a single design by slug."""
+    logger.info("get_design", slug=slug)
     if not supa.client:
         raise HTTPException(status_code=404, detail="Design not found")
 
@@ -57,7 +60,9 @@ async def get_design(
         lambda: supa.client.table("marketplace_designs").select("*").eq("slug", slug).single().execute()
     )
     if not result.data:
+        logger.warning("get_design_not_found", slug=slug)
         raise HTTPException(status_code=404, detail="Design not found")
+    logger.info("get_design_done", slug=slug)
     return result.data
 
 
@@ -68,10 +73,10 @@ async def purchase_design(
     supa: SupabaseService = Depends(get_supabase_service),
 ):
     """Purchase a marketplace design using credits or subscription."""
+    user_id = user.get("sub")
+    logger.info("purchase_design", user_id=user_id, slug=slug)
     if not supa.client:
         raise HTTPException(status_code=501, detail="Marketplace not configured")
-
-    user_id = user.get("sub")
 
     # Get design
     design_result = await asyncio.to_thread(
@@ -79,6 +84,7 @@ async def purchase_design(
     )
     design = design_result.data
     if not design:
+        logger.warning("purchase_design_not_found", slug=slug)
         raise HTTPException(status_code=404, detail="Design not found")
 
     # Free designs don't need purchase
@@ -90,6 +96,7 @@ async def purchase_design(
                 "design_id": design["id"],
             }).execute()
         )
+        logger.info("purchase_design_free_added", user_id=user_id, slug=slug)
         return {"status": "ok", "message": "Design added to your collection"}
 
     # Check if already owned
@@ -101,6 +108,7 @@ async def purchase_design(
             .execute()
     )
     if existing.data:
+        logger.info("purchase_design_already_owned", user_id=user_id, slug=slug)
         return {"status": "ok", "message": "Already owned"}
 
     # Check entitlement
@@ -126,6 +134,7 @@ async def purchase_design(
         }).execute()
     )
 
+    logger.info("purchase_design_done", user_id=user_id, slug=slug, plan=plan)
     return {"status": "ok", "message": "Design purchased"}
 
 
@@ -135,6 +144,7 @@ async def my_designs(
     supa: SupabaseService = Depends(get_supabase_service),
 ):
     """List designs owned by the current user."""
+    logger.info("my_designs", user_id=user.get("sub"))
     if not supa.client:
         return {"designs": []}
 
@@ -153,6 +163,7 @@ async def my_designs(
             design["purchased_at"] = row["purchased_at"]
             designs.append(design)
 
+    logger.info("my_designs_done", user_id=user.get("sub"), count=len(designs))
     return {"designs": designs}
 
 
@@ -174,6 +185,7 @@ async def submit_design(
     supa: SupabaseService = Depends(get_supabase_service),
 ):
     """Submit a new design for review."""
+    logger.info("submit_design", user_id=user.get("sub"), name=body.name, category=body.category)
     if not supa.client:
         raise HTTPException(status_code=501, detail="Marketplace not configured")
 
@@ -194,6 +206,7 @@ async def submit_design(
         }).execute()
     )
 
+    logger.info("submit_design_done", user_id=user.get("sub"), name=body.name)
     return {"status": "ok", "submission": result.data[0] if result.data else None}
 
 
@@ -203,6 +216,7 @@ async def my_submissions(
     supa: SupabaseService = Depends(get_supabase_service),
 ):
     """List designer's own submissions."""
+    logger.info("my_submissions", user_id=user.get("sub"))
     if not supa.client:
         return {"submissions": []}
 
@@ -215,4 +229,5 @@ async def my_submissions(
             .execute()
     )
 
+    logger.info("my_submissions_done", user_id=user.get("sub"), count=len(result.data or []))
     return {"submissions": result.data or []}

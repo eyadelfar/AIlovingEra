@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import useAuthStore from '../stores/authStore';
+import log from './editorLogger';
 
 const BASE = import.meta.env.VITE_API_BASE_URL ?? '';
 
@@ -124,6 +125,7 @@ export async function apiFetch(path, options = {}) {
         fetchOpts.headers = { ...(fetchOpts.headers || {}), Authorization: `Bearer ${token}` };
       }
 
+      log.action('api', 'request', { method, path, attempt });
       const res = await fetch(`${BASE}${path}`, {
         ...fetchOpts,
         signal: controller.signal,
@@ -131,8 +133,10 @@ export async function apiFetch(path, options = {}) {
       clearTimeout(timeoutId);
 
       if (!res.ok) {
+        log.action('api', 'error', { method, path, status: res.status, attempt });
         // 401 Unauthorized — try refreshing token and retry ONCE
         if (res.status === 401 && attempt === 0) {
+          log.action('api', 'auth:refresh', { path });
           const freshToken = await forceRefreshToken();
           if (freshToken) {
             fetchOpts.headers = { ...(fetchOpts.headers || {}), Authorization: `Bearer ${freshToken}` };
@@ -147,12 +151,14 @@ export async function apiFetch(path, options = {}) {
         // Retry 5xx errors
         if (isRetryable(res.status) && attempt < effectiveRetries) {
           lastError = await buildError(res);
+          log.action('api', 'retry', { path, status: res.status, attempt });
           await delay(RETRY_DELAYS[attempt] || 4000);
           continue;
         }
         throw await buildError(res);
       }
 
+      log.action('api', 'success', { method, path, status: res.status });
       return res;
     } catch (err) {
       clearTimeout(timeoutId);

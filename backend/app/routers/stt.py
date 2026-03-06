@@ -26,6 +26,7 @@ async def transcribe_audio(
     language: str | None = Form(None),
     stt: AbstractSTTService = Depends(get_stt_service),
 ):
+    logger.info("transcribe_audio", content_type=audio.content_type, language=language)
     ct = (audio.content_type or "").lower()
     ct_base = ct.split(";")[0].strip()
     if ct_base and ct_base not in ALLOWED_AUDIO_TYPES:
@@ -43,4 +44,5 @@ async def transcribe_audio(
         logger.error("transcription_failed", exc_info=True)
         raise HTTPException(status_code=500, detail="Transcription failed. Please try again.")
 
+    logger.info("transcribe_audio_done", text_length=len(text))
     return {"text": text}

@@ -19,7 +19,6 @@ function getTextStyle(overrides, positionOffset) {
   if (!overrides && !positionOffset) return { className: '', inlineStyle: {} };
   const classes = [];
   const inlineStyle = {};
-  // Font size: numeric px values applied via inline style (always wins over CSS)
   if (overrides?.fontSize) {
     const size = typeof overrides.fontSize === 'number' ? overrides.fontSize : parseInt(overrides.fontSize);
     if (!isNaN(size)) inlineStyle.fontSize = `${size}px`;
@@ -27,18 +26,18 @@ function getTextStyle(overrides, positionOffset) {
   if (overrides?.bold) classes.push('!font-bold');
   if (overrides?.italic) classes.push('!italic');
   if (overrides?.underline) classes.push('!underline');
-  // Alignment: use inline style so it always overrides layout CSS classes
-  // Also set width:100% so text-align is visible inside flex items-center parents
   if (overrides?.align) { inlineStyle.textAlign = overrides.align; inlineStyle.width = '100%'; }
   if (overrides?.color) inlineStyle.color = overrides.color;
   if (overrides?.fontFamily) inlineStyle.fontFamily = overrides.fontFamily;
   if (overrides?.maxWidth) inlineStyle.maxWidth = TEXT_WIDTH_MAP[overrides.maxWidth] || '100%';
   if (positionOffset) {
-    // Support both legacy pixel {x,y} and new percentage {xPct,yPct} formats
-    if ('xPct' in positionOffset || 'yPct' in positionOffset) {
+    // New px format: pixel offsets from natural position
+    if ('xPx' in positionOffset || 'yPx' in positionOffset) {
+      inlineStyle.transform = `translate(${positionOffset.xPx || 0}px, ${positionOffset.yPx || 0}px)`;
+    }
+    // Legacy percentage format
+    else if ('xPct' in positionOffset || 'yPct' in positionOffset) {
       inlineStyle.transform = `translate(${positionOffset.xPct || 0}%, ${positionOffset.yPct || 0}%)`;
-    } else if (positionOffset.x != null || positionOffset.y != null) {
-      // Legacy pixel format — discard to avoid cross-view inconsistencies
     }
   }
   return { className: classes.join(' '), inlineStyle };

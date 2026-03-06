@@ -1,6 +1,10 @@
 """Pure function to flatten chapter/spread structures into flat page lists for PDF."""
 
+import structlog
+
 from app.models.schemas import ChapterDraft, MemoryPageDraft
+
+logger = structlog.get_logger()
 
 
 def flatten_chapters_to_pages(
@@ -8,6 +12,7 @@ def flatten_chapters_to_pages(
     data: dict,
 ) -> list[MemoryPageDraft]:
     """Convert a chapter-based structure into a flat list of MemoryPageDraft for PDF rendering."""
+    logger.info("flatten_chapters_to_pages", num_chapters=len(chapters))
     pages: list[MemoryPageDraft] = []
     page_num = 1
 
@@ -91,4 +96,5 @@ def flatten_chapters_to_pages(
         body_text=closing_text,
     ))
 
+    logger.info("flatten_chapters_to_pages_done", total_pages=len(pages))
     return pages

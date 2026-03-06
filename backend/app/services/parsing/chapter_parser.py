@@ -1,5 +1,7 @@
 """Pure functions for parsing chapters and spreads from AI response data."""
 
+import structlog
+
 from app.models.schemas import (
     ChapterDraft,
     PageElement,
@@ -7,6 +9,8 @@ from app.models.schemas import (
     SpreadDraft,
     normalize_layout,
 )
+
+logger = structlog.get_logger()
 
 
 def safe_str(val, default: str = "") -> str:
@@ -33,6 +37,7 @@ def safe_chapter_index(raw_value, fallback: int) -> int:
 
 def parse_spreads(raw_spreads: list[dict]) -> list[SpreadDraft]:
     """Parse a list of raw spread dicts into SpreadDraft models."""
+    logger.info("parse_spreads", count=len(raw_spreads))
     spreads: list[SpreadDraft] = []
     for idx, s in enumerate(raw_spreads):
         # Extract photo indices from either flat field or nested elements
@@ -87,11 +92,13 @@ def parse_spreads(raw_spreads: list[dict]) -> list[SpreadDraft]:
             design_notes=safe_str(s.get("design_notes")),
             regen_policy=regen_policy,
         ))
+    logger.info("parse_spreads_done", parsed=len(spreads))
     return spreads
 
 
 def parse_chapters(data: dict) -> list[ChapterDraft]:
     """Parse the chapters array from the AI response data dict."""
+    logger.info("parse_chapters", raw_count=len(data.get("chapters", [])))
     chapters: list[ChapterDraft] = []
     for ch in data.get("chapters", []):
         spreads = parse_spreads(ch.get("spreads", []))
@@ -103,4 +110,5 @@ def parse_chapters(data: dict) -> list[ChapterDraft]:
             blurb=safe_str(ch.get("blurb")),
             spreads=spreads,
         ))
+    logger.info("parse_chapters_done", parsed=len(chapters))
     return chapters

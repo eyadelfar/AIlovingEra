@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import useBookStore from '../../stores/bookStore';
 import { CURATED_FONTS, loadGoogleFont } from '../../lib/fontLoader';
+import log from '../../lib/editorLogger';
 
 const TEXT_FIELDS = [
   { key: 'heading_text', labelKey: 'textFieldHeading' },
@@ -145,6 +146,7 @@ export default function InlineTextEditor({ page, chapterIdx, spreadIdx, pageType
 
   const style = localStyles[activeField] || {};
   const updateStyle = useCallback((updates) => {
+    log.action('textEditor', 'updateStyle', { field: activeField, ...updates });
     setLocalStyles(prev => ({
       ...prev,
       [activeField]: { ...(prev[activeField] || {}), ...updates },
@@ -166,6 +168,7 @@ export default function InlineTextEditor({ page, chapterIdx, spreadIdx, pageType
   }, [activeField, chapterIdx, spreadIdx, setTextStyleOverride, contentEditableRef]);
 
   const handleSave = useCallback(() => {
+    log.action('textEditor', 'save', { field: activeField, chapterIdx, spreadIdx });
     closedRef.current = true;
     // Save text content from contentEditable if ref exists
     if (contentEditableRef?.current && chapterIdx != null && spreadIdx != null) {
@@ -186,6 +189,7 @@ export default function InlineTextEditor({ page, chapterIdx, spreadIdx, pageType
   }, [page, activeField, pageType, chapterIdx, spreadIdx, localStyles, updateBookField, updateSpreadField, setTextStyleOverride, onClose, availableFields, contentEditableRef]);
 
   const handleCancel = useCallback(() => {
+    log.action('textEditor', 'cancel', { field: activeField, chapterIdx, spreadIdx });
     closedRef.current = true;
     availableFields.forEach(f => {
       const key = `${chapterIdx}-${spreadIdx}-${f.key}`;
@@ -204,6 +208,7 @@ export default function InlineTextEditor({ page, chapterIdx, spreadIdx, pageType
 
   const handleRegenerate = useCallback(async () => {
     if (!activeField) return;
+    log.action('textEditor', 'aiRewrite', { field: activeField, chapterIdx, spreadIdx });
     const result = await regenerateTextAction(
       chapterIdx, spreadIdx, activeField,
       t('aiRewritePrompt'),

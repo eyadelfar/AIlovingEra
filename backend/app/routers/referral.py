@@ -23,8 +23,10 @@ async def get_referral_code(
     settings: Settings = Depends(get_settings),
 ):
     user_id = user.get("sub")
+    logger.info("get_referral_code", user_id=user_id)
     code = await supa.get_or_create_referral_code(user_id)
     link = f"{settings.frontend_url}/signup?ref={code}"
+    logger.info("get_referral_code_done", user_id=user_id, code=code)
     return {"code": code, "link": link}
 
 
@@ -34,7 +36,9 @@ async def get_referral_stats(
     supa: SupabaseService = Depends(get_supabase_service),
 ):
     user_id = user.get("sub")
+    logger.info("get_referral_stats", user_id=user_id)
     stats = await supa.get_referral_stats(user_id)
+    logger.info("get_referral_stats_done", user_id=user_id)
     return stats
 
 
@@ -46,7 +50,10 @@ async def process_referral(
     settings: Settings = Depends(get_settings),
 ):
     user_id = user.get("sub")
+    logger.info("process_referral", user_id=user_id, referral_code=body.referral_code)
     success = await supa.process_referral(user_id, body.referral_code, settings.referral_credits)
     if not success:
+        logger.warning("process_referral_failed", user_id=user_id, referral_code=body.referral_code)
         raise HTTPException(status_code=400, detail="Invalid or already used referral code")
+    logger.info("process_referral_done", user_id=user_id, referral_code=body.referral_code)
     return {"status": "referral_processed"}

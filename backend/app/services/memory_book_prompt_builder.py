@@ -1,5 +1,7 @@
 import json
 
+import structlog
+
 from app.interfaces.prompt_builder import AbstractPromptBuilder
 from app.models.schemas import BookGenerationRequest, RegenerateTextRequest
 from app.prompts import load_system_prompt
@@ -8,6 +10,9 @@ from app.prompts.structure_guides import STRUCTURE_GUIDES
 from app.prompts.vibe_guides import VIBE_GUIDES
 from app.prompts.yaml_loader import load_yaml, load_all_yaml_dir
 from app.constants import IMAGE_LOOK_PROMPTS
+
+
+logger = structlog.get_logger()
 
 
 class MemoryBookPromptBuilder(AbstractPromptBuilder):
@@ -124,6 +129,7 @@ class MemoryBookPromptBuilder(AbstractPromptBuilder):
         num_photos: int,
         metadata: list[dict] | None = None,
     ) -> str:
+        logger.info("build_photo_analysis_prompt", num_photos=num_photos, has_metadata=metadata is not None)
         base = self._compose_section("photo_analysis_base", {"num_photos": num_photos})
         cot = self._compose_section("chain_of_thought_header")
         quality = self._compose_section("quality_scoring_instructions")
@@ -246,6 +252,7 @@ Do NOT translate proper nouns or names. Keep layout_id values and JSON keys in E
         clusters: list[dict] | None = None,
         quality_scores: list[dict] | None = None,
     ) -> str:
+        logger.info("build_planning_prompt", num_analyses=len(photo_analyses), vibe=request.vibe, structure=request.structure_template)
         planning_instructions = self._compose_section("planning_instructions")
         names, names_block = self._format_names(request.partner_names)
 
@@ -376,6 +383,7 @@ Respond ONLY with valid JSON:
         plan: dict,
         photo_analyses: list[dict],
     ) -> str:
+        logger.info("build_writing_prompt", num_analyses=len(photo_analyses), vibe=request.vibe)
         writing_base = self._compose_section("narrative_writing_base")
         anti_cringe = self._compose_section("anti_cringe_rules")
 
@@ -513,6 +521,7 @@ Respond ONLY with valid JSON:
         structure_guide: dict | None = None,
         template_config: dict | None = None,
     ) -> str:
+        logger.info("build_narrative_prompt", num_analyses=len(photo_analyses), vibe=request.vibe, structure=request.structure_template)
         system_prompt = load_system_prompt()
         anti_cringe = self._compose_section("anti_cringe_rules")
 
@@ -734,6 +743,7 @@ IMPORTANT REMINDERS:
         locale: str = "en",
         question_count: int = 6,
     ) -> str:
+        logger.info("build_questions_prompt", num_analyses=len(photo_analyses), locale=locale, question_count=question_count)
         names, _ = self._format_names(partner_names)
         if not names:
             names = "the couple"
@@ -800,6 +810,7 @@ Respond ONLY with valid JSON array:
     # ── Text regeneration ────────────────────────────────────────────────
 
     def build_regenerate_text_prompt(self, request: RegenerateTextRequest) -> str:
+        logger.info("build_regenerate_text_prompt", field_name=request.field_name)
         anti_cringe = self._compose_section("anti_cringe_rules")
         return f"""You are editing a single text field in a memory book.
 
@@ -821,6 +832,7 @@ Rewrite the text following the user's instruction. Return ONLY the new text, not
         style_hint: str,
         image_look: str,
     ) -> str:
+        logger.info("build_image_generation_prompt", image_look=image_look)
         look_instruction = IMAGE_LOOK_PROMPTS.get(image_look, "")
         parts = [
             "Generate an image for a couples memory book.",

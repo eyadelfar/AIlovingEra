@@ -30,9 +30,12 @@ async def get_profile(
     supa: SupabaseService = Depends(get_supabase_service),
 ):
     user_id = user.get("sub")
+    logger.info("get_profile", user_id=user_id)
     profile = await supa.get_profile(user_id)
     if not profile:
+        logger.warning("get_profile_not_found", user_id=user_id)
         raise HTTPException(status_code=404, detail="Profile not found")
+    logger.info("get_profile_done", user_id=user_id)
     return profile
 
 
@@ -46,7 +49,9 @@ async def update_profile(
     update_data = body.model_dump(exclude_none=True)
     if not update_data:
         raise HTTPException(status_code=400, detail="No fields to update")
+    logger.info("update_profile", user_id=user_id, fields=list(update_data.keys()))
     await supa.update_profile(user_id, update_data)
+    logger.info("update_profile_done", user_id=user_id)
     return {"status": "updated"}
 
 
@@ -57,6 +62,7 @@ async def upload_avatar(
     supa: SupabaseService = Depends(get_supabase_service),
 ):
     user_id = user.get("sub")
+    logger.info("upload_avatar", user_id=user_id, content_type=file.content_type)
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="File must be an image")
 
@@ -69,6 +75,7 @@ async def upload_avatar(
     except Exception as e:
         logger.error("avatar_upload_failed", user_id=user_id, error=str(e))
         raise HTTPException(status_code=500, detail="Failed to upload avatar. Please try again.")
+    logger.info("upload_avatar_done", user_id=user_id)
     return {"avatar_url": url}
 
 
@@ -79,9 +86,11 @@ async def change_password(
     supa: SupabaseService = Depends(get_supabase_service),
 ):
     user_id = user.get("sub")
+    logger.info("change_password", user_id=user_id)
     if len(body.new_password) < 6:
         raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
     await supa.change_user_password(user_id, body.new_password)
+    logger.info("change_password_done", user_id=user_id)
     return {"status": "password_changed"}
 
 
@@ -92,7 +101,9 @@ async def delete_account(
     supa: SupabaseService = Depends(get_supabase_service),
 ):
     user_id = user.get("sub")
+    logger.info("delete_account", user_id=user_id)
     if body.confirm != "DELETE":
         raise HTTPException(status_code=400, detail="Must confirm with 'DELETE'")
     await supa.delete_user_account(user_id)
+    logger.info("delete_account_done", user_id=user_id)
     return {"status": "account_deleted"}

@@ -1,5 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
+import log from '../../lib/editorLogger';
 
 const SelectionContext = createContext(null);
 
@@ -14,14 +15,19 @@ export function SelectionProvider({ children, enabled }) {
   const containerRef = useRef(null);
 
   const selectPhoto = useCallback((slotKey, chapterIdx, spreadIdx, slotIdx) => {
+    log.action('selection', 'selectPhoto', { slotKey, chapterIdx, spreadIdx, slotIdx });
     setSelected({ type: 'photo', slotKey, chapterIdx, spreadIdx, slotIdx });
   }, []);
 
   const selectText = useCallback((field, chapterIdx, spreadIdx) => {
+    log.action('selection', 'selectText', { field, chapterIdx, spreadIdx });
     setSelected({ type: 'text', field, chapterIdx, spreadIdx });
   }, []);
 
-  const clearSelection = useCallback(() => setSelected(null), []);
+  const clearSelection = useCallback(() => {
+    log.action('selection', 'clear');
+    setSelected(null);
+  }, []);
 
   const registerRef = useCallback((key, ref) => {
     elementRefs.current[key] = ref;

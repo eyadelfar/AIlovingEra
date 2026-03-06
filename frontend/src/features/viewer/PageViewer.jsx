@@ -9,6 +9,7 @@ import LockedPageOverlay from './LockedPageOverlay';
 import { pageSlide, pageTransition } from '../../lib/animations';
 import { isPageLocked } from '../../lib/constants';
 import useBookStore from '../../stores/bookStore';
+import log from '../../lib/editorLogger';
 
 export default function PageViewer({
   pages, images, templateSlug, photoAnalyses, cropOverrides, filterOverrides,
@@ -44,6 +45,7 @@ export default function PageViewer({
   }, [currentPage]);
 
   const mapping = pageToSpreadMap?.[currentPage];
+  log.action('nav', 'pageView', { page: currentPage, pageType: page?.page_type, chapterIdx: mapping?.chapterIdx, spreadIdx: mapping?.spreadIdx });
   const Renderer = isEditMode ? EditablePageRenderer : PageRenderer;
   const extraProps = isEditMode
     ? { isEditMode: true, chapterIdx: mapping?.chapterIdx, spreadIdx: mapping?.spreadIdx }

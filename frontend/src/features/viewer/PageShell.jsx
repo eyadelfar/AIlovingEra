@@ -6,6 +6,7 @@ import { PageOrnaments, PageBgPattern } from './PageOrnaments';
 import { useEditMode } from './EditModeContext';
 import { useSelection } from './SelectionContext';
 import useBookStore from '../../stores/bookStore';
+import log from '../../lib/editorLogger';
 
 const BLEND_RECIPES = {
   romantic: {
@@ -162,8 +163,8 @@ function PhotoImgCore({ photo, imgStyle, frame, frameStyle, className, vignetteS
       <img
         src={photo.previewUrl}
         alt=""
-        className={`w-full h-full ${blendImgStyle.objectFit ? '' : 'object-cover'}`}
-        style={Object.keys(blendImgStyle).length > 0 ? blendImgStyle : undefined}
+        className="w-full h-full"
+        style={{ objectFit: 'contain', ...blendImgStyle }}
       />
       {/* Layer 1: Color overlay with mix-blend-mode */}
       {blendPhotos && blendRecipe && (
@@ -250,6 +251,9 @@ export function PhotoImg({ photo, style, altFrame, heroFrame, filter, cropOverri
   const computedSlotKey = (editChapterIdx != null && editSpreadIdx != null && slotIdx != null)
     ? `${editChapterIdx}-${editSpreadIdx}-${slotIdx}`
     : slotKey;
+  if (computedSlotKey && computedSlotKey !== slotKey && slotKey) {
+    log.action('override', 'slotKeyResolved', { prop: slotKey, computed: computedSlotKey });
+  }
 
   const templateFrame = heroFrame ? style.photoFrameHero : altFrame ? style.photoFrameAlt : style.photoFrame;
   const imageFrameOverride = computedSlotKey && imageFrameOverrides?.[computedSlotKey];
@@ -259,15 +263,18 @@ export function PhotoImg({ photo, style, altFrame, heroFrame, filter, cropOverri
   const effectiveFilter = userFilter ? buildFilterCSS(userFilter) : filter;
 
   const userCrop = computedSlotKey && cropOverrides?.[computedSlotKey];
+  const storedSizeForFit = normalizeSize(computedSlotKey && storeState.sizeOverrides?.[computedSlotKey]);
   const imgStyle = {};
   if (effectiveFilter) imgStyle.filter = effectiveFilter;
 
-  // When cropped (zoom >= 1), use object-cover + transform to match the crop modal preview.
-  // When uncropped, use object-contain to show the full image without clipping.
+  // When user has explicitly cropped (zoom > 1), use object-cover to honor the crop.
+  // Otherwise default to object-contain so the full image is visible without clipping.
   if (userCrop && userCrop.zoom > 1) {
     imgStyle.objectFit = 'cover';
     imgStyle.transform = `scale(${userCrop.zoom}) translate(${userCrop.panX}%, ${userCrop.panY}%)`;
     imgStyle.transformOrigin = 'center';
+  } else {
+    imgStyle.objectFit = 'contain';
   }
 
   const vignetteStyle = userFilter ? buildVignetteStyle(userFilter.vignette) : {};

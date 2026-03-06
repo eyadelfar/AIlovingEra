@@ -16,6 +16,7 @@ import ImageFramePickerPanel from './ImageFramePickerPanel';
 import PageFramePickerPanel from './PageFramePickerPanel';
 import ShapePickerModal from './ShapePickerModal';
 import ShapeOverlay from './ShapeOverlay';
+import log from '../../lib/editorLogger';
 
 const PAGE_TYPE_KEYS = {
   book_cover_front: { chapterIdx: 'bcf', spreadIdx: 0 },
@@ -298,19 +299,20 @@ function CanvasWrapper({
     const textInfo = findTextField(e.target, e.currentTarget);
 
     if (photoEl) {
-      // Extract slotIdx from the photo element's data attributes
       const slotKey = photoEl.dataset?.slotKey;
       const slotIdx = parseInt(photoEl.dataset?.slotIdx, 10);
       const photoIndices = page.photo_indices || [];
       const photoIdx = photoIndices[slotIdx];
-      // Auto-select the photo
       if (selection && slotKey != null) {
         selection.selectPhoto(slotKey, chapterIdx, spreadIdx, slotIdx);
       }
+      log.action('contextMenu', 'open:photo', { x, y, slotKey, slotIdx, photoIdx });
       setContextMenu({ x, y, targetType: 'photo', targetInfo: { slotKey, slotIdx, photoIdx } });
     } else if (textInfo) {
+      log.action('contextMenu', 'open:text', { x, y, field: textInfo.field });
       setContextMenu({ x, y, targetType: 'text', targetInfo: { field: textInfo.field, element: textInfo.element } });
     } else {
+      log.action('contextMenu', 'open:empty', { x, y });
       setContextMenu({ x, y, targetType: 'empty' });
     }
   }, [page, chapterIdx, spreadIdx, selection, findTextField]);
@@ -333,14 +335,12 @@ function CanvasWrapper({
         // Find an empty text field to populate, preferring body > heading > caption > quote
         const fields = ['body_text', 'heading_text', 'caption_text', 'quote_text'];
         const emptyField = fields.find(f => !page[f]);
-        // Place text near the right-click position
+        // Place text near the right-click position using px offsets
         if (contextMenu && canvasRef.current) {
-          const textCanvasRect = canvasRef.current.getBoundingClientRect();
-          const clickXPct = (contextMenu.x / textCanvasRect.width) * 100 - 50; // center offset
-          const clickYPct = (contextMenu.y / textCanvasRect.height) * 100 - 50;
           const textPosField = emptyField || 'body_text';
           const textPosKey = `${chapterIdx}-${spreadIdx}-${textPosField}`;
-          setTextPositionOffset(textPosKey, { xPct: clickXPct, yPct: clickYPct });
+          setTextPositionOffset(textPosKey, { xPx: contextMenu.x, yPx: contextMenu.y });
+          log.action('text', 'addText:position', { key: textPosKey, x: contextMenu.x, y: contextMenu.y });
         }
         if (emptyField) {
           savePageText(pageType, emptyField, 'Your text here...', updateBookField, updateSpreadField, chapterIdx, spreadIdx);
@@ -620,13 +620,11 @@ function CanvasWrapper({
     if (!canvas) return;
 
     let dragEl = null;
-    let startX = 0, startY = 0, origXPct = 0, origYPct = 0;
-    let containerW = 400, containerH = 560;
+    let startX = 0, startY = 0, origXPx = 0, origYPx = 0;
     let dragFieldType = null;
     let rafId = null;
 
     function detectFieldType(el) {
-      // Walk up to find data-ts attribute first
       let current = el;
       while (current && current !== canvas) {
         const ts = current.getAttribute?.('data-ts');
@@ -636,15 +634,15 @@ function CanvasWrapper({
         }
         current = current.parentElement;
       }
-      // Fallback for elements without data-ts
       const tag = el.tagName.toLowerCase();
       if (tag === 'h2' || tag === 'h3') return 'heading_text';
       return 'body_text';
     }
 
     function onPointerDown(e) {
-      // Don't start drag if clicking on a contentEditable element (editing mode)
       if (e.target.closest('[contenteditable="true"]')) return;
+      // Don't start text drag if clicking on a shape overlay
+      if (e.target.closest('[data-shape-overlay]')) return;
       const el = e.target.closest('h2, h3, p, span');
       if (!el || el.closest('[data-selectable]') || el.closest('[data-toolbar]') || el.closest('[data-popover]')) return;
       if (!canvas.contains(el)) return;
@@ -654,16 +652,13 @@ function CanvasWrapper({
       startX = e.clientX;
       startY = e.clientY;
 
-      // Get container dimensions for percentage conversion
-      const pageContainer = canvas.closest('[class*="aspect-"]') || canvas;
-      const rect = pageContainer.getBoundingClientRect();
-      containerW = rect.width || 400;
-      containerH = rect.height || 560;
-
+      // Parse existing px transform
       const transform = dragEl.style.transform || '';
-      const matchPct = transform.match(/translate\((-?[\d.]+)%,\s*(-?[\d.]+)%\)/);
-      origXPct = matchPct ? parseFloat(matchPct[1]) : 0;
-      origYPct = matchPct ? parseFloat(matchPct[2]) : 0;
+      const matchPx = transform.match(/translate\((-?[\d.]+)px,\s*(-?[\d.]+)px\)/);
+      origXPx = matchPx ? parseFloat(matchPx[1]) : 0;
+      origYPx = matchPx ? parseFloat(matchPx[2]) : 0;
+
+      log.action('text', 'drag:start', { field: dragFieldType, origXPx, origYPx });
       dragEl.style.cursor = 'grabbing';
       dragEl.style.zIndex = '30';
       dragEl.style.willChange = 'transform';
@@ -678,9 +673,7 @@ function CanvasWrapper({
       rafId = requestAnimationFrame(() => {
         const dx = cx - startX;
         const dy = cy - startY;
-        const newXPct = origXPct + (dx / containerW) * 100;
-        const newYPct = origYPct + (dy / containerH) * 100;
-        dragEl.style.transform = `translate(${newXPct}%, ${newYPct}%)`;
+        dragEl.style.transform = `translate(${origXPx + dx}px, ${origYPx + dy}px)`;
         rafId = null;
       });
     }
@@ -690,13 +683,12 @@ function CanvasWrapper({
       if (dragEl) {
         const dx = e.clientX - startX;
         const dy = e.clientY - startY;
-        // Persist position as percentage if moved more than 2px
         if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
           const key = `${chapterIdx}-${spreadIdx}-${dragFieldType}`;
-          setTextPosRef.current?.(key, {
-            xPct: origXPct + (dx / containerW) * 100,
-            yPct: origYPct + (dy / containerH) * 100,
-          });
+          const finalX = origXPx + dx;
+          const finalY = origYPx + dy;
+          setTextPosRef.current?.(key, { xPx: finalX, yPx: finalY });
+          log.action('text', 'drag:end', { key, xPx: finalX, yPx: finalY });
         }
         dragEl.style.cursor = '';
         dragEl.style.zIndex = '';
@@ -969,9 +961,11 @@ function CanvasWrapper({
         className="hidden"
         onChange={(e) => {
           const files = Array.from(e.target.files || []);
-          files.forEach(file => {
+          log.action('image', 'addImages', { count: files.length, chapterIdx, spreadIdx });
+          files.forEach((file, i) => {
             const idx = addImageToBook(file);
             addPhotoToSpread(chapterIdx, spreadIdx, idx);
+            log.action('image', 'addedImage', { fileIndex: i, bookIndex: idx });
           });
           e.target.value = '';
         }}

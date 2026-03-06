@@ -30,8 +30,10 @@ async def create_checkout_session(
 ):
     user_id = user.get("sub")
     user_email = user.get("email", "")
+    logger.info("create_checkout_session", user_id=user_id, plan_id=body.plan_id)
     url = stripe_svc.create_checkout_session(body.plan_id, user_id, user_email)
     await supa.log_payment_event(user_id, "checkout_created", {"plan_id": body.plan_id})
+    logger.info("create_checkout_session_done", user_id=user_id, plan_id=body.plan_id)
     return {"url": url}
 
 
@@ -41,6 +43,7 @@ async def stripe_webhook(
     stripe_svc: StripeService = Depends(get_stripe_service),
     supa: SupabaseService = Depends(get_supabase_service),
 ):
+    logger.info("stripe_webhook_received")
     payload = await request.body()
     sig = request.headers.get("stripe-signature", "")
 
@@ -104,7 +107,9 @@ async def get_credits(
     supa: SupabaseService = Depends(get_supabase_service),
 ):
     user_id = user.get("sub")
+    logger.info("get_credits", user_id=user_id)
     credits = await supa.get_credits(user_id)
+    logger.info("get_credits_done", user_id=user_id, credits=credits)
     return {"credits": credits}
 
 
@@ -120,6 +125,7 @@ async def paypal_create_order(
     settings: Settings = Depends(get_settings),
 ):
     """Create a PayPal order. Frontend uses @paypal/react-paypal-js to render buttons."""
+    logger.info("paypal_create_order", user_id=user.get("sub"), plan_id=body.plan_id, amount_cents=body.amount_cents)
     if not settings.paypal_client_id or not settings.paypal_client_secret:
         raise HTTPException(status_code=501, detail="PayPal not configured")
 
@@ -136,6 +142,7 @@ async def paypal_create_order(
         )
         access_token = token_resp.json()["access_token"]
 
+        logger.info("paypal_token_obtained")
         # Create order
         amount = f"{body.amount_cents / 100:.2f}"
         order_resp = await client.post(
@@ -149,7 +156,9 @@ async def paypal_create_order(
                 }],
             },
         )
-        return order_resp.json()
+        result = order_resp.json()
+        logger.info("paypal_create_order_done", order_id=result.get("id"))
+        return result
 
 
 @router.post("/paypal/capture-order")
@@ -160,6 +169,7 @@ async def paypal_capture_order(
     supa: SupabaseService = Depends(get_supabase_service),
 ):
     """Capture an approved PayPal order."""
+    logger.info("paypal_capture_order", user_id=user.get("sub"))
     if not settings.paypal_client_id or not settings.paypal_client_secret:
         raise HTTPException(status_code=501, detail="PayPal not configured")
 
@@ -187,6 +197,7 @@ async def paypal_capture_order(
 
     if result.get("status") == "COMPLETED":
         user_id = user.get("sub")
+        logger.info("paypal_capture_completed", user_id=user_id, order_id=order_id, plan_id=plan_id)
         credits = PLAN_CREDITS.get(plan_id, 0)
         if credits > 0:
             await supa.add_credits(user_id, credits, f"paypal_{plan_id}")
@@ -200,4 +211,5 @@ async def paypal_capture_order(
             "status": "completed",
         })
 
+    logger.info("paypal_capture_order_done", status=result.get("status"))
     return result

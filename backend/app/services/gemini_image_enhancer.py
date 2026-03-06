@@ -27,6 +27,7 @@ class GeminiImageEnhancer(AbstractImageEnhancer):
         context: str,
         image_look: str = "",
     ) -> bytes:
+        logger.info("enhance_photo_start", style=style, vibe=vibe, image_look=image_look, image_size=len(image_bytes))
         look_instruction = IMAGE_LOOK_PROMPTS.get(image_look, "")
 
         prompt = (
@@ -76,6 +77,7 @@ class GeminiImageEnhancer(AbstractImageEnhancer):
         raise ValueError("Gemini did not return an enhanced image")
 
     async def generate_image_from_text(self, prompt: str) -> bytes:
+        logger.info("generate_image_from_text_start", prompt_length=len(prompt))
         t0 = time.perf_counter()
         try:
             response = await with_rate_limit_retry(
@@ -111,6 +113,7 @@ class GeminiImageEnhancer(AbstractImageEnhancer):
         mime_type: str,
         style: str = "chibi",
     ) -> bytes:
+        logger.info("generate_cartoon_start", style=style, image_size=len(image_bytes))
         prompt = (
             f"Create a cute {style} cartoon illustration of ONLY the people in this photo. "
             "Crop tightly to just the characters, no scenery, no background. "
@@ -161,6 +164,7 @@ class GeminiImageEnhancer(AbstractImageEnhancer):
         template_name: str,
         palette_description: str = "",
     ) -> bytes:
+        logger.info("blend_with_template_start", template_name=template_name, image_size=len(image_bytes))
         prompt = (
             f"Re-render this photograph to blend naturally with a '{template_name}' book design. "
             f"Color palette: {palette_description or template_name + ' tones'}. "

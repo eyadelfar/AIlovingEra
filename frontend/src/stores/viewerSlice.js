@@ -1,4 +1,5 @@
 import { trackEvent } from '../lib/eventTracker';
+import log from '../lib/editorLogger';
 
 export const createViewerSlice = (set, get) => ({
   currentPage: 0,
@@ -6,10 +7,14 @@ export const createViewerSlice = (set, get) => ({
   viewMode: 'spread',
 
   setCurrentPage: (page) => {
+    log.action('viewer', 'setPage', { page });
     set({ currentPage: page });
     trackEvent('page_viewed', 'viewer', { page });
   },
-  setViewMode: (mode) => set({ viewMode: mode }),
+  setViewMode: (mode) => {
+    log.action('viewer', 'setViewMode', { mode });
+    set({ viewMode: mode });
+  },
   nextPage: () => {
     set((s) => {
       const activeDraft = s.editorDraft || s.bookDraft;
@@ -23,12 +28,17 @@ export const createViewerSlice = (set, get) => ({
     set((s) => ({ currentPage: Math.max(s.currentPage - 1, 0) }));
     trackEvent('page_viewed', 'viewer', { page: get().currentPage });
   },
-  setEditMode: (val) => set({ isEditMode: val }),
+  setEditMode: (val) => {
+    log.action('viewer', 'setEditMode', { editMode: val });
+    set({ isEditMode: val });
+  },
   toggleEditMode: () => {
     const s = get();
+    const newMode = !s.isEditMode;
+    log.action('viewer', 'toggleEditMode', { from: s.isEditMode, to: newMode, dirty: s.editorDirty });
     if (s.isEditMode && s.editorDirty) {
       s.commitEditorDraft();
     }
-    set({ isEditMode: !s.isEditMode });
+    set({ isEditMode: newMode });
   },
 });

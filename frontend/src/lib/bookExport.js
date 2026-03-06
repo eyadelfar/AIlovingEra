@@ -1,4 +1,5 @@
 import useBookStore from '../stores/bookStore';
+import log from './editorLogger';
 
 export const CURRENT_VERSION = 1;
 const EXPORT_MAX_WIDTH = 1600;
@@ -69,6 +70,7 @@ async function compressAndEncodeImage(imageObj, index, total, onProgress) {
  * Images are compressed and base64-encoded sequentially (for progress reporting).
  */
 export async function exportBook(onProgress) {
+  log.action('export', 'start');
   const s = useBookStore.getState();
 
   // Strip pages[] from bookDraft (rebuilt on import via rebuildPages)
@@ -136,6 +138,7 @@ export async function exportBook(onProgress) {
     cartoonImages: s.cartoonImages || [],
   };
 
+  log.action('export', 'complete', { imageCount: images.length, title: envelope.meta.title });
   return JSON.stringify(envelope);
 }
 

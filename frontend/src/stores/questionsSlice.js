@@ -1,5 +1,6 @@
 import toast from 'react-hot-toast';
 import { fetchAIQuestions, fetchAIQuestionsStream, regenerateText } from '../api/bookApi';
+import log from '../lib/editorLogger';
 
 export const createQuestionsSlice = (set, get) => ({
   aiQuestions: [],
@@ -14,6 +15,7 @@ export const createQuestionsSlice = (set, get) => ({
   questionLoadingStage: null,
 
   rephraseStory: async () => {
+    log.action('questions', 'rephraseStory');
     const s = get();
     const text = s.textInput;
     if (!text?.trim()) return;
@@ -47,6 +49,7 @@ export const createQuestionsSlice = (set, get) => ({
 
   fetchQuestions: async (questionCount = 6) => {
     const s = get();
+    log.action('questions', 'fetch', { questionCount, existing: s.aiQuestions.length });
     if (s.isLoadingQuestions || s.aiQuestions.length > 0) return;
     // Clear any existing timer before starting
     get().cleanupQuestionTimers();
@@ -90,6 +93,7 @@ export const createQuestionsSlice = (set, get) => ({
 
   fetchMoreQuestions: async (count) => {
     const s = get();
+    log.action('questions', 'fetchMore', { count });
     if (s.isLoadingMoreQuestions) return;
     // Clear any existing reveal timer before starting new one
     get().cleanupQuestionTimers();
@@ -155,6 +159,7 @@ export const createQuestionsSlice = (set, get) => ({
   },
 
   rephraseAnswer: async (questionId) => {
+    log.action('questions', 'rephraseAnswer', { questionId });
     const s = get();
     const answer = s.questionAnswers[questionId];
     if (!answer?.trim()) return;

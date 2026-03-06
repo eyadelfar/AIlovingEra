@@ -28,10 +28,12 @@ def _fetch_jwks(jwks_url: str) -> dict:
     if cached and (now - cached[0]) < _JWKS_TTL_SECONDS:
         return cached[1]
 
+    logger.info("jwks_fetch_start", jwks_url=jwks_url)
     try:
         resp = urllib.request.urlopen(jwks_url, timeout=10)
         data = json.loads(resp.read())
         _jwks_cache[jwks_url] = (now, data)
+        logger.info("jwks_fetch_success", num_keys=len(data.get("keys", [])))
         return data
     except Exception:
         logger.error("jwks_fetch_failed", jwks_url=jwks_url, exc_info=True)
@@ -57,13 +59,16 @@ def _decode_token(token: str) -> dict:
     # Fallback: if old jwt_secret is set, use HS256
     if settings.supabase_jwt_secret:
         try:
-            return jwt.decode(
+            payload = jwt.decode(
                 token,
                 settings.supabase_jwt_secret,
                 algorithms=["HS256"],
                 audience="authenticated",
             )
+            logger.info("jwt_decoded_hs256", user_id=payload.get("sub"))
+            return payload
         except JWTError:
+            logger.warning("jwt_hs256_verification_failed", exc_info=True)
             raise HTTPException(status_code=401, detail="Invalid or expired token")
 
     # New JWKS-based verification (ES256)
@@ -99,9 +104,10 @@ def _decode_token(token: str) -> dict:
             algorithms=[alg],
             audience="authenticated",
         )
+        logger.info("jwt_decoded_jwks", user_id=payload.get("sub"), alg=alg)
         return payload
     except JWTError:
-        logger.debug("jwt_verification_failed", exc_info=True)
+        logger.warning("jwt_jwks_verification_failed", alg=alg, kid=kid, exc_info=True)
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
 
@@ -122,6 +128,7 @@ async def require_auth(request: Request) -> dict:
     """Required auth -- raises 401 if not authenticated."""
     user = await get_current_user(request)
     if not user:
+        logger.warning("auth_required_no_token", path=request.url.path)
         raise HTTPException(status_code=401, detail="Authentication required")
     return user
 
@@ -163,6 +170,7 @@ async def check_user_ban(request: Request) -> dict:
     if cached is not None:
         is_banned, reason = cached
         if is_banned:
+            logger.warning("banned_user_access_attempt", user_id=user_id, reason=reason, source="cache")
             raise HTTPException(status_code=403, detail=f"Account suspended: {reason or 'Contact support'}")
         return user
 
@@ -183,6 +191,7 @@ async def check_user_ban(request: Request) -> dict:
     _ban_cache[user_id] = (_time.monotonic(), is_banned, reason)
 
     if is_banned:
+        logger.warning("banned_user_access_attempt", user_id=user_id, reason=reason, source="db")
         raise HTTPException(status_code=403, detail=f"Account suspended: {reason or 'Contact support'}")
 
     return user

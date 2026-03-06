@@ -30,6 +30,7 @@ async def extract_photo_metadata(
     image_bytes_list: list[bytes],
     mime_types: list[str],
 ) -> list[PhotoMetadata]:
+    logger.info("extract_photo_metadata_start", num_photos=len(image_bytes_list))
     # Process all photos in parallel using thread pool
     loop = asyncio.get_running_loop()
     futures = [
@@ -42,7 +43,9 @@ async def extract_photo_metadata(
         )
         for idx, raw in enumerate(image_bytes_list)
     ]
-    return list(await asyncio.gather(*futures))
+    results = list(await asyncio.gather(*futures))
+    logger.info("extract_photo_metadata_done", num_photos=len(results))
+    return results
 
 
 def _dms_to_decimal(dms_tuple: tuple, ref: str) -> float | None:

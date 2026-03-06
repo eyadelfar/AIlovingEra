@@ -1,4 +1,5 @@
 import { removeBackground as imglyRemoveBg } from '@imgly/background-removal';
+import log from './editorLogger';
 
 let ortConfigured = false;
 
@@ -14,9 +15,11 @@ async function configureOrt() {
 }
 
 export async function removeBackground(imageUrl) {
+  log.action('bgRemoval', 'start');
   await configureOrt();
   const response = await fetch(imageUrl);
   const blob = await response.blob();
   const resultBlob = await imglyRemoveBg(blob, { model: 'isnet_fp16' });
+  log.action('bgRemoval', 'complete', { inputSize: blob.size, outputSize: resultBlob.size });
   return URL.createObjectURL(resultBlob);
 }

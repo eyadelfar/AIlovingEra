@@ -5,6 +5,7 @@ import {
 } from '../api/bookApi';
 import { ensureFiles } from '../lib/imageUtils';
 import { trackEvent } from '../lib/eventTracker';
+import log from '../lib/editorLogger';
 
 /* ── Phase-aware progress mapping ─────────────────────────────────── */
 const PHASE_RANGES = {
@@ -107,6 +108,7 @@ export const createGenerationSlice = (set, get) => ({
       _abortController: abortController,
     });
 
+    log.action('generation', 'start', { template: s.selectedTemplate, imageCount: s.images.length });
     trackEvent('started', 'generation', { template: s.selectedTemplate });
 
     if (s.cartoonImages.length === 0 && !s.cartoonLoading) {
@@ -133,12 +135,14 @@ export const createGenerationSlice = (set, get) => ({
 
       // Step 1: Upload (if no session yet)
       if (!sessionId) {
+        log.action('generation', 'phase:upload');
         set({ generationPhase: 'upload', generationStage: 'Uploading photos...' });
         // Re-hydrate File objects if they were evicted after a previous generation
         const hydratedImages = await ensureFiles(get().images);
         set({ images: hydratedImages });
         const uploadResult = await uploadImages(hydratedImages);
         sessionId = uploadResult.session_id;
+        log.action('generation', 'uploaded', { sessionId });
         set((prev) => ({
           sessionId,
           generationProgress: Math.max(5, prev.generationProgress),
@@ -147,6 +151,7 @@ export const createGenerationSlice = (set, get) => ({
 
       // Step 2: Analyze (if not already done)
       if (!hasAnalysis) {
+        log.action('generation', 'phase:analyze', { sessionId });
         set({ generationPhase: 'analyze' });
         await analyzeStream(sessionId, (e) => onProgress(e, 'analyze'), abortController.signal);
         set((prev) => ({
@@ -156,6 +161,7 @@ export const createGenerationSlice = (set, get) => ({
       }
 
       // Step 3: Plan
+      log.action('generation', 'phase:plan', { sessionId });
       set((prev) => ({
         generationPhase: 'plan',
         generationStage: 'Planning your book layout...',
@@ -168,6 +174,7 @@ export const createGenerationSlice = (set, get) => ({
       }));
 
       // Step 4: Write (streams progress, credit deducted here)
+      log.action('generation', 'phase:write', { sessionId });
       set({ generationPhase: 'write' });
       const result = await writeBookStream(
         sessionId, get()._getSettings(), (e) => onProgress(e, 'write'), abortController.signal,
@@ -185,9 +192,11 @@ export const createGenerationSlice = (set, get) => ({
         generationStage: 'Complete!',
         _abortController: null,
       }));
+      log.action('generation', 'complete', { pages: result.draft?.pages?.length || 0, preview: result.preview_only || false });
       trackEvent('completed', 'generation', { pages: result.draft?.pages?.length || 0, preview: result.preview_only || false });
     } catch (err) {
-      if (err.name === 'AbortError') return;
+      if (err.name === 'AbortError') { log.action('generation', 'aborted'); return; }
+      log.action('generation', 'failed', { error: err.message });
       set({
         isGenerating: false,
         generationProgress: 0,

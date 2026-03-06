@@ -23,6 +23,7 @@ def score_photos(
     Combines local metrics (blur, exposure, resolution) with AI analysis
     scores (composition, face quality) when available.
     """
+    logger.info("score_photos_start", num_photos=len(metadata), has_analyses=analyses is not None)
     scores: list[PhotoQualityScore] = []
 
     analysis_map: dict[int, dict] = {}
@@ -101,6 +102,7 @@ def filter_book_worthy(
 
     For duplicate groups, only the best_index is kept.
     """
+    logger.info("filter_book_worthy", num_scores=len(scores), num_duplicate_groups=len(duplicate_groups), min_quality=min_quality)
     # Collect duplicate indices (all except best)
     duplicate_indices: set[int] = set()
     for group in duplicate_groups:
@@ -115,4 +117,5 @@ def filter_book_worthy(
         if s.overall >= min_quality:
             worthy.append(s.photo_index)
 
+    logger.info("filter_book_worthy_done", worthy_count=len(worthy), duplicate_excluded=len(duplicate_indices))
     return sorted(worthy)

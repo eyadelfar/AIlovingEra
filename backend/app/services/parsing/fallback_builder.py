@@ -48,6 +48,7 @@ def pick_fallback_layout(sp_idx: int, photos_remaining: int) -> tuple[str, int]:
 
 
 def build_fallback_blurb(ch_idx: int, start_idx: int, end_idx: int, get_analysis) -> str:
+    logger.debug("build_fallback_blurb", chapter_index=ch_idx, start_idx=start_idx, end_idx=end_idx)
     """Build a contextual blurb from photo analyses, or use varied fallback."""
     scenes = set()
     emotions = set()
@@ -200,6 +201,7 @@ def fallback(
         )
     )
 
+    logger.warning("fallback_draft_complete", num_pages=len(pages), num_chapters=len(chapters), num_photos=num_photos)
     return MemoryBookDraft(
         title="Our Memory Book",
         subtitle="A collection of moments",

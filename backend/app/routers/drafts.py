@@ -42,7 +42,9 @@ async def list_drafts(
     supa: SupabaseService = Depends(get_supabase_service),
 ):
     user_id = user.get("sub")
+    logger.info("list_drafts", user_id=user_id)
     drafts = await supa.list_drafts(user_id)
+    logger.info("list_drafts_done", user_id=user_id, count=len(drafts))
     return {"drafts": drafts}
 
 
@@ -53,9 +55,12 @@ async def get_draft(
     supa: SupabaseService = Depends(get_supabase_service),
 ):
     user_id = user.get("sub")
+    logger.info("get_draft", user_id=user_id, draft_id=draft_id)
     draft = await supa.get_draft(draft_id, user_id)
     if not draft:
+        logger.warning("get_draft_not_found", user_id=user_id, draft_id=draft_id)
         raise HTTPException(404, "Draft not found")
+    logger.info("get_draft_done", user_id=user_id, draft_id=draft_id)
     return draft
 
 
@@ -67,7 +72,9 @@ async def create_draft(
 ):
     user_id = user.get("sub")
     data = body.model_dump(exclude_none=True)
+    logger.info("create_draft", user_id=user_id, title=body.title, template_slug=body.template_slug)
     draft = await supa.create_draft(user_id, data)
+    logger.info("create_draft_done", user_id=user_id, draft_id=draft.get("id") if isinstance(draft, dict) else None)
     return draft
 
 
@@ -82,7 +89,9 @@ async def update_draft(
     data = body.model_dump(exclude_none=True)
     if not data:
         raise HTTPException(422, "No fields to update")
+    logger.info("update_draft", user_id=user_id, draft_id=draft_id, fields=list(data.keys()))
     updated = await supa.update_draft(draft_id, user_id, data)
+    logger.info("update_draft_done", user_id=user_id, draft_id=draft_id)
     return updated
 
 
@@ -93,7 +102,9 @@ async def delete_draft(
     supa: SupabaseService = Depends(get_supabase_service),
 ):
     user_id = user.get("sub")
+    logger.info("delete_draft", user_id=user_id, draft_id=draft_id)
     await supa.delete_draft(draft_id, user_id)
+    logger.info("delete_draft_done", user_id=user_id, draft_id=draft_id)
     return {"ok": True}
 
 
@@ -105,9 +116,11 @@ async def upload_draft_photos(
     supa: SupabaseService = Depends(get_supabase_service),
 ):
     user_id = user.get("sub")
+    logger.info("upload_draft_photos", user_id=user_id, draft_id=draft_id, photo_count=len(photos))
     # Verify draft belongs to user
     draft = await supa.get_draft(draft_id, user_id)
     if not draft:
+        logger.warning("upload_draft_photos_not_found", user_id=user_id, draft_id=draft_id)
         raise HTTPException(404, "Draft not found")
 
     paths = []
@@ -119,4 +132,5 @@ async def upload_draft_photos(
         )
         paths.append(path)
 
+    logger.info("upload_draft_photos_done", user_id=user_id, draft_id=draft_id, uploaded=len(paths))
     return {"paths": paths, "count": len(paths)}

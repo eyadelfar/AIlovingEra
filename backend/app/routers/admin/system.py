@@ -1,11 +1,14 @@
 import time
 
+import structlog
 from fastapi import APIRouter, Depends, Query
 
 from app.middleware.admin_auth import require_admin
 from app.dependencies import get_admin_service, get_settings
 from app.services.admin_service import AdminService
 from app.services.session_store import get_session_store
+
+logger = structlog.get_logger()
 
 router = APIRouter(prefix="/api/admin/system", tags=["admin-system"])
 
@@ -16,6 +19,7 @@ _start_time = time.time()
 async def system_health(
     _user: dict = Depends(require_admin),
 ):
+    logger.info("admin_system_health")
     settings = get_settings()
     store = get_session_store()
     return {
@@ -34,6 +38,7 @@ async def recent_errors(
     _user: dict = Depends(require_admin),
     svc: AdminService = Depends(get_admin_service),
 ):
+    logger.info("admin_recent_errors", limit=limit)
     return await svc.get_generation_error_summary(limit)
 
 
@@ -44,4 +49,5 @@ async def audit_log(
     _user: dict = Depends(require_admin),
     svc: AdminService = Depends(get_admin_service),
 ):
+    logger.info("admin_audit_log", page=page, action=action)
     return await svc.list_audit_log(page=page, action=action)

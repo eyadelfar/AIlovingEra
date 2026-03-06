@@ -35,7 +35,9 @@ def detect_duplicates(
         List of DuplicateGroup with best_index selected per group.
     """
     n = len(metadata)
+    logger.info("detect_duplicates_start", num_photos=n, threshold=threshold)
     if n < 2:
+        logger.info("detect_duplicates_skip", reason="fewer_than_2_photos")
         return []
 
     # Build adjacency via Union-Find
@@ -112,6 +114,7 @@ def select_best_in_group(
 
     Score = blur * 0.4 + exposure * 0.3 + resolution * 0.3
     """
+    logger.debug("select_best_in_group", group_size=len(indices))
     best_idx = indices[0]
     best_score = -1.0
 

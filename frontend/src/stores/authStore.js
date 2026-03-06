@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import i18n from '../lib/i18n';
 import { trackEvent } from '../lib/eventTracker';
 import useBookStore from './bookStore';
+import log from '../lib/editorLogger';
 
 const PERSIST_KEY = 'keepsqueak-auth';
 
@@ -27,6 +28,7 @@ const useAuthStore = create(
       loading: true,
 
       initialize: () => {
+        log.action('auth', 'initialize');
         if (!supabase) {
           set({ loading: false });
           return;
@@ -71,6 +73,7 @@ const useAuthStore = create(
       },
 
       signUp: async (email, password, displayName) => {
+        log.action('auth', 'signUp', { email });
         if (!supabase) throw new Error('Auth not configured');
         const { data, error } = await supabase.auth.signUp({
           email,
@@ -86,6 +89,7 @@ const useAuthStore = create(
       },
 
       signIn: async (email, password) => {
+        log.action('auth', 'signIn', { email });
         if (!supabase) throw new Error('Auth not configured');
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) {
@@ -107,6 +111,7 @@ const useAuthStore = create(
       },
 
       signOut: () => {
+        log.action('auth', 'signOut');
         // ALL synchronous — nothing can hang or race
 
         // 0. Clean up book store (aborts generation, clears timers, revokes blobs)

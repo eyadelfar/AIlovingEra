@@ -16,9 +16,11 @@ async def get_usage(
     supa: SupabaseService = Depends(get_supabase_service),
 ):
     user_id = user.get("sub")
+    logger.info("get_usage", user_id=user_id)
     profile = await supa.get_profile(user_id)
     generation_history = await supa.get_generation_history(user_id, limit=50)
     credit_history = await supa.get_credit_history(user_id, limit=100)
+    logger.info("get_usage_done", user_id=user_id, generations=len(generation_history), credits=len(credit_history))
 
     return {
         "profile": profile,

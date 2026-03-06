@@ -1,3 +1,5 @@
+import log from './editorLogger';
+
 /**
  * Returns true if the value is a File or Blob (i.e. uploadable via FormData).
  */
@@ -11,6 +13,7 @@ export function isUploadable(val) {
  * This re-fetches the blob from previewUrl and reconstructs a File object.
  */
 export async function ensureFiles(images) {
+  log.action('imageUtils', 'ensureFiles', { count: images?.length });
   return Promise.all(images.map(async (img) => {
     if (isUploadable(img.file)) return img;
     if (!img.previewUrl) return img; // nothing we can do
@@ -106,6 +109,7 @@ export async function compressImagesForAPI(images, maxWidth = 1200, quality = 0.
  * Runs in browser (client CPU), reports progress via onProgress callback.
  */
 export async function compressImagesForPDF(images, { maxWidth = 2400, quality = 0.92, onProgress } = {}) {
+  log.action('imageUtils', 'compressForPDF', { count: images?.length, maxWidth, quality });
   // Re-hydrate any missing File objects first
   const hydrated = await ensureFiles(images);
   const results = [];

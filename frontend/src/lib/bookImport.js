@@ -1,11 +1,13 @@
 import { CURRENT_VERSION } from './bookExport';
 import { rebuildPages } from '../stores/editorSlice';
+import log from './editorLogger';
 
 /**
  * Validate a parsed JSON export object.
  * Returns { valid: true } or { valid: false, error: "..." }.
  */
 export function validateExport(data) {
+  log.action('import', 'validate', { version: data?.version, hasKsb: data?.__ksb });
   if (!data || typeof data !== 'object') {
     return { valid: false, error: 'Not a valid JSON object' };
   }
@@ -50,6 +52,7 @@ function base64ToFile(b64, name, mimeType) {
  * Deserialize the images array from an export into File objects + preview URLs.
  */
 export function deserializeImages(imagesArray, onProgress) {
+  log.action('import', 'deserializeImages', { count: imagesArray?.length });
   const result = [];
   for (let i = 0; i < imagesArray.length; i++) {
     onProgress?.({ stage: 'loading', current: i + 1, total: imagesArray.length });
@@ -66,6 +69,7 @@ export function deserializeImages(imagesArray, onProgress) {
  * Calls rebuildPages() on the bookDraft so pages[] is restored.
  */
 export function buildHydratePayload(exportData, images) {
+  log.action('import', 'hydrate', { imageCount: images?.length, title: exportData?.generation?.bookDraft?.title });
   const bookDraft = structuredClone(exportData.generation.bookDraft);
   bookDraft.pages = rebuildPages(bookDraft);
 

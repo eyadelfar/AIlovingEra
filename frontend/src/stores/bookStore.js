@@ -5,6 +5,7 @@ import { createSettingsSlice } from './settingsSlice';
 import { createGenerationSlice } from './generationSlice';
 import { createViewerSlice } from './viewerSlice';
 import { createEditorSlice } from './editorSlice';
+import log from '../lib/editorLogger';
 
 const useBookStore = create((...a) => ({
   ...createWizardSlice(...a),
@@ -15,6 +16,7 @@ const useBookStore = create((...a) => ({
   ...createEditorSlice(...a),
 
   hydrateFromExport: (payload) => {
+    log.action('bookStore', 'hydrateFromExport');
     const [set, get] = a;
     // Cleanup existing state
     get().images.forEach(img => URL.revokeObjectURL(img.previewUrl));
@@ -29,6 +31,7 @@ const useBookStore = create((...a) => ({
   },
 
   reset: () => {
+    log.action('bookStore', 'reset');
     const [set, get] = a;
     const s = get();
     // Clean up timers and abort controllers before resetting state

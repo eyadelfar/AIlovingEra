@@ -1,6 +1,7 @@
 import { generateAIImage, enhanceImage, regenerateText } from '../api/bookApi';
 import { MAX_PHOTOS, getNextLayoutUp } from '../features/viewer/layouts/index';
 import { trackEvent } from '../lib/eventTracker';
+import log from '../lib/editorLogger';
 
 const MAX_HISTORY = 30;
 const HISTORY_DEBOUNCE_MS = 100;
@@ -189,6 +190,7 @@ export const createEditorSlice = (set, get) => ({
   },
 
   initEditor: () => {
+    log.action('editor', 'initEditor');
     clearTimeout(_historyDebounceTimer);
     _historyDebounceTimer = null;
     _pendingSnapshot = null;
@@ -231,6 +233,7 @@ export const createEditorSlice = (set, get) => ({
   undo: () => {
     const s = get();
     if (s.editorHistory.length === 0) return;
+    log.action('editor', 'undo', { historyLen: s.editorHistory.length });
     const prevSnapshot = s.editorHistory[s.editorHistory.length - 1];
     const currentSnapshot = captureVisualState(s);
     set({
@@ -243,6 +246,7 @@ export const createEditorSlice = (set, get) => ({
   redo: () => {
     const s = get();
     if (s.editorFuture.length === 0) return;
+    log.action('editor', 'redo', { futureLen: s.editorFuture.length });
     const nextSnapshot = s.editorFuture[0];
     const currentSnapshot = captureVisualState(s);
     set({
@@ -296,6 +300,7 @@ export const createEditorSlice = (set, get) => ({
   },
 
   reorderSpread: (chapterIdx, fromIdx, toIdx) => {
+    log.action('editor', 'reorderSpread', { chapterIdx, fromIdx, toIdx });
     get().pushHistory();
     set((s) => {
       const draft = structuredClone(s.editorDraft);
@@ -334,6 +339,7 @@ export const createEditorSlice = (set, get) => ({
   },
 
   reorderChapter: (fromIdx, toIdx) => {
+    log.action('editor', 'reorderChapter', { fromIdx, toIdx });
     get().pushHistory();
     set((s) => {
       const draft = structuredClone(s.editorDraft);
@@ -369,6 +375,7 @@ export const createEditorSlice = (set, get) => ({
   },
 
   swapPhoto: (chapterIdx, spreadIdx, slotIdx, newImageId) => {
+    log.action('editor', 'swapPhoto', { chapterIdx, spreadIdx, slotIdx, newImageId });
     get().pushHistory();
     set((s) => {
       const draft = structuredClone(s.editorDraft);
@@ -382,6 +389,7 @@ export const createEditorSlice = (set, get) => ({
   },
 
   removeSpread: (chapterIdx, spreadIdx) => {
+    log.action('editor', 'removeSpread', { chapterIdx, spreadIdx });
     get().pushHistory();
     set((s) => {
       const draft = structuredClone(s.editorDraft);
@@ -409,6 +417,7 @@ export const createEditorSlice = (set, get) => ({
   },
 
   addBlankSpread: (chapterIdx, position) => {
+    log.action('editor', 'addBlankSpread', { chapterIdx, position });
     get().pushHistory();
     set((s) => {
       const draft = structuredClone(s.editorDraft);
@@ -448,6 +457,7 @@ export const createEditorSlice = (set, get) => ({
   },
 
   duplicateSpread: (chapterIdx, spreadIdx) => {
+    log.action('editor', 'duplicateSpread', { chapterIdx, spreadIdx });
     get().pushHistory();
     set((s) => {
       const draft = structuredClone(s.editorDraft);
@@ -486,6 +496,7 @@ export const createEditorSlice = (set, get) => ({
   },
 
   swapPhotoBetweenSpreads: (fromChIdx, fromSpIdx, fromSlotIdx, toChIdx, toSpIdx, toSlotIdx) => {
+    log.action('editor', 'swapPhotoBetweenSpreads', { fromChIdx, fromSpIdx, fromSlotIdx, toChIdx, toSpIdx, toSlotIdx });
     get().pushHistory();
     set((s) => {
       const draft = structuredClone(s.editorDraft);
@@ -518,6 +529,7 @@ export const createEditorSlice = (set, get) => ({
   setUseOriginalPhotos: (val) => set({ useOriginalPhotos: val }),
 
   setCropOverride: (key, cropData) => {
+    log.action('override', 'setCrop', { key, zoom: cropData?.zoom });
     get().pushHistory();
     set((s) => ({ cropOverrides: { ...s.cropOverrides, [key]: cropData } }));
     trackEvent('photo_cropped', 'editor');
@@ -531,6 +543,7 @@ export const createEditorSlice = (set, get) => ({
     });
   },
   setFilterOverride: (key, filterData) => {
+    log.action('override', 'setFilter', { key });
     get().pushHistory();
     set((s) => ({ filterOverrides: { ...s.filterOverrides, [key]: filterData } }));
   },
@@ -575,6 +588,7 @@ export const createEditorSlice = (set, get) => ({
   },
 
   setTextPositionOffset: (key, offset) => {
+    log.action('override', 'setTextPosition', { key, ...offset });
     get().pushHistory();
     set((s) => ({ textPositionOffsets: { ...s.textPositionOffsets, [key]: offset } }));
   },
@@ -629,9 +643,11 @@ export const createEditorSlice = (set, get) => ({
   addShapeOverlay: (chapterIdx, spreadIdx, shapeData) => {
     get().pushHistory();
     const key = `${chapterIdx}-${spreadIdx}`;
+    const shapeId = `shape-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    log.action('shape', 'add', { key, shapeId, ...shapeData });
     set((s) => {
       const existing = s.shapeOverlays[key] || [];
-      return { shapeOverlays: { ...s.shapeOverlays, [key]: [...existing, { id: `shape-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, xPct: 40, yPct: 40, widthPct: 15, heightPct: 15, color: '#ffffff', rotation: 0, ...shapeData }] } };
+      return { shapeOverlays: { ...s.shapeOverlays, [key]: [...existing, { id: shapeId, xPct: 40, yPct: 40, widthPct: 15, heightPct: 15, color: '#ffffff', rotation: 0, ...shapeData }] } };
     });
   },
   updateShapeOverlay: (chapterIdx, spreadIdx, shapeId, updates) => {
@@ -667,10 +683,13 @@ export const createEditorSlice = (set, get) => ({
   // ── Add/remove/move photos in editor ──
   addImageToBook: (file) => {
     const previewUrl = URL.createObjectURL(file);
+    const id = `user-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     set((s) => ({
-      images: [...s.images, { id: `user-${Date.now()}`, file, previewUrl }],
+      images: [...s.images, { id, file, previewUrl }],
     }));
-    return get().images.length - 1; // return new photo index
+    const idx = get().images.length - 1;
+    log.action('image', 'addToBook', { id, index: idx, fileName: file.name });
+    return idx;
   },
 
   addPhotoToSpread: (chapterIdx, spreadIdx, photoIdx) => {
@@ -693,6 +712,7 @@ export const createEditorSlice = (set, get) => ({
   },
 
   removePhotoFromSpread: (chapterIdx, spreadIdx, slotIdx) => {
+    log.action('editor', 'removePhoto', { chapterIdx, spreadIdx, slotIdx });
     get().pushHistory();
     set((s) => {
       const draft = structuredClone(s.editorDraft);
@@ -718,6 +738,7 @@ export const createEditorSlice = (set, get) => ({
   },
 
   movePhotoBetweenPages: (fromChIdx, fromSpIdx, fromSlot, toChIdx, toSpIdx, toSlot) => {
+    log.action('editor', 'movePhoto', { fromChIdx, fromSpIdx, fromSlot, toChIdx, toSpIdx, toSlot });
     get().pushHistory();
     set((s) => {
       const draft = structuredClone(s.editorDraft);
@@ -796,6 +817,7 @@ export const createEditorSlice = (set, get) => ({
   },
 
   replacePhotoPreviewUrl: (photoIdx, newUrl) => {
+    log.action('editor', 'replacePreviewUrl', { photoIdx });
     get().pushHistory();
     set((s) => {
       const images = [...s.images];
@@ -815,16 +837,19 @@ export const createEditorSlice = (set, get) => ({
   commitEditorDraft: () => {
     const s = get();
     if (!s.editorDraft) return;
+    log.action('editor', 'commitDraft', { pages: s.editorDraft.pages?.length });
     const committed = structuredClone(s.editorDraft);
     committed.pages = rebuildPages(committed);
     set({ bookDraft: committed, editorDirty: false });
   },
 
   generateAIImageAction: async (prompt, imageLook) => {
+    log.action('editor', 'generateAIImage', { promptLen: prompt?.length, imageLook });
     return generateAIImage({ prompt, styleHint: '', imageLook: imageLook || get().imageLook });
   },
 
   enhanceImageAction: async (photoIndex, imageLook, styleHint = '') => {
+    log.action('editor', 'enhanceImage', { photoIndex, imageLook });
     const s = get();
     const img = s.images[photoIndex];
     if (!img) return null;
@@ -846,6 +871,7 @@ export const createEditorSlice = (set, get) => ({
   },
 
   regenerateTextAction: async (chapterIdx, spreadIdx, field, instruction) => {
+    log.action('editor', 'regenerateText', { chapterIdx, spreadIdx, field });
     const s = get();
     const SPECIAL_PAGES = { bcf: 'book_cover_front', cov: 'cover', ded: 'dedication', bck: 'back_cover', bcb: 'book_cover_back' };
     let currentText = '';
